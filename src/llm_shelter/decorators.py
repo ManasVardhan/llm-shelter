@@ -5,7 +5,7 @@ from __future__ import annotations
 import functools
 from typing import Any, Callable, TypeVar
 
-from llm_shelter.pipeline import Action, GuardrailPipeline, ValidationResult
+from llm_shelter.pipeline import GuardrailPipeline, ValidationResult
 
 F = TypeVar("F", bound=Callable[..., Any])
 
