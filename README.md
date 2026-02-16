@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="assets/hero.svg" alt="llm-shelter" width="800">
+</p>
+
 # 🛡️ llm-shelter
 
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://python.org)
