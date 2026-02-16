@@ -1,6 +1,3 @@
-<p align="center">
-  <img src="assets/banner.svg" alt="llm-shelter" width="800">
-</p>
 
 # 🛡️ llm-shelter
 
