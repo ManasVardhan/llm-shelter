@@ -1,6 +1,8 @@
 
 # 🛡️ llm-shelter
 
+> **New here?** Start with the [Getting Started Guide](GETTING_STARTED.md).
+
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://python.org)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![CI](https://github.com/manasvardhan/llm-shelter/actions/workflows/ci.yml/badge.svg)](https://github.com/manasvardhan/llm-shelter/actions)
