@@ -1,0 +1,58 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "llm-shelter"
+version = "0.1.0"
+description = "Safety and guardrails toolkit for LLM applications"
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.10"
+authors = [{ name = "Manas Vardhan" }]
+keywords = ["llm", "safety", "guardrails", "pii", "prompt-injection"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Security",
+    "Typing :: Typed",
+]
+dependencies = []
+
+[project.optional-dependencies]
+fastapi = ["fastapi>=0.100.0", "uvicorn>=0.23.0"]
+cli = ["click>=8.0"]
+dev = [
+    "pytest>=7.0",
+    "pytest-asyncio>=0.21",
+    "ruff>=0.1.0",
+    "mypy>=1.0",
+]
+all = ["llm-shelter[fastapi,cli,dev]"]
+
+[project.scripts]
+llm-shelter = "llm_shelter.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/manasvardhan/llm-shelter"
+Repository = "https://github.com/manasvardhan/llm-shelter"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/llm_shelter"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+
+[tool.ruff]
+target-version = "py310"
+line-length = 100
+
+[tool.mypy]
+python_version = "3.10"
+strict = true
