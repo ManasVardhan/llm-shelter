@@ -56,9 +56,7 @@ _DELIMITER_PATTERNS: list[InjectionPattern] = [
     ),
     InjectionPattern(
         "role_switch",
-        re.compile(
-            r"(?i)(?:^|\n)\s*(?:system|assistant|human|user)\s*:\s*\S"
-        ),
+        re.compile(r"(?i)(?:^|\n)\s*(?:system|assistant|human|user)\s*:\s*\S"),
         severity=0.7,
     ),
 ]
@@ -115,14 +113,16 @@ class InjectionValidator:
         for inj in self.patterns:
             for match in inj.pattern.finditer(text):
                 if inj.severity >= self.threshold:
-                    findings.append(Finding(
-                        validator=self.name,
-                        category=inj.name,
-                        description=f"Potential injection ({inj.name}): "
-                                    f"'{match.group()[:50]}...'",
-                        span=(match.start(), match.end()),
-                        severity=inj.severity,
-                    ))
+                    findings.append(
+                        Finding(
+                            validator=self.name,
+                            category=inj.name,
+                            description=f"Potential injection ({inj.name}): "
+                            f"'{match.group()[:50]}...'",
+                            span=(match.start(), match.end()),
+                            severity=inj.severity,
+                        )
+                    )
 
         return ValidationResult(
             is_valid=len(findings) == 0,

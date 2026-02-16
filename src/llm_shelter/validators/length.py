@@ -38,22 +38,26 @@ class LengthValidator:
         findings: list[Finding] = []
 
         if self.max_chars is not None and len(text) > self.max_chars:
-            findings.append(Finding(
-                validator=self.name,
-                category="max_chars",
-                description=f"Text length {len(text)} exceeds limit of {self.max_chars} chars",
-                severity=0.8,
-            ))
+            findings.append(
+                Finding(
+                    validator=self.name,
+                    category="max_chars",
+                    description=f"Text length {len(text)} exceeds limit of {self.max_chars} chars",
+                    severity=0.8,
+                )
+            )
 
         if self.max_tokens is not None:
             est = self.estimate_tokens(text)
             if est > self.max_tokens:
-                findings.append(Finding(
-                    validator=self.name,
-                    category="max_tokens",
-                    description=f"Estimated {est} tokens exceeds limit of {self.max_tokens}",
-                    severity=0.8,
-                ))
+                findings.append(
+                    Finding(
+                        validator=self.name,
+                        category="max_tokens",
+                        description=f"Estimated {est} tokens exceeds limit of {self.max_tokens}",
+                        severity=0.8,
+                    )
+                )
 
         return ValidationResult(
             is_valid=len(findings) == 0,

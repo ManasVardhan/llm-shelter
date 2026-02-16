@@ -11,6 +11,7 @@ from llm_shelter.pipeline import Action, Finding, ValidationResult
 @dataclass
 class PIIPattern:
     """A named regex pattern for PII detection."""
+
     name: str
     pattern: re.Pattern[str]
     placeholder: str
@@ -21,9 +22,7 @@ class PIIPattern:
 
 _EMAIL = PIIPattern(
     name="email",
-    pattern=re.compile(
-        r"\b[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}\b"
-    ),
+    pattern=re.compile(r"\b[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}\b"),
     placeholder="[EMAIL_REDACTED]",
     severity=0.8,
 )
@@ -43,9 +42,7 @@ _PHONE_US = PIIPattern(
 
 _SSN = PIIPattern(
     name="ssn",
-    pattern=re.compile(
-        r"\b(?!000|666|9\d{2})\d{3}[\s\-]?(?!00)\d{2}[\s\-]?(?!0000)\d{4}\b"
-    ),
+    pattern=re.compile(r"\b(?!000|666|9\d{2})\d{3}[\s\-]?(?!00)\d{2}[\s\-]?(?!0000)\d{4}\b"),
     placeholder="[SSN_REDACTED]",
     severity=1.0,
 )
@@ -108,18 +105,22 @@ class PIIValidator:
 
         for pii in self.patterns:
             for match in pii.pattern.finditer(text):
-                findings.append(Finding(
-                    validator=self.name,
-                    category=pii.name,
-                    description=f"Detected {pii.name}: {match.group()[:4]}***",
-                    span=(match.start(), match.end()),
-                    severity=pii.severity,
-                    redacted_value=pii.placeholder,
-                ))
+                findings.append(
+                    Finding(
+                        validator=self.name,
+                        category=pii.name,
+                        description=f"Detected {pii.name}: {match.group()[:4]}***",
+                        span=(match.start(), match.end()),
+                        severity=pii.severity,
+                        redacted_value=pii.placeholder,
+                    )
+                )
 
         if self.redact and findings:
             # Redact from right to left to preserve span positions
-            sorted_findings = sorted(findings, key=lambda f: f.span[0] if f.span else 0, reverse=True)
+            sorted_findings = sorted(
+                findings, key=lambda f: f.span[0] if f.span else 0, reverse=True
+            )
             for f in sorted_findings:
                 if f.span and f.redacted_value:
                     redacted = redacted[: f.span[0]] + f.redacted_value + redacted[f.span[1] :]

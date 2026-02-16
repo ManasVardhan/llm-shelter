@@ -9,6 +9,7 @@ from typing import Protocol, runtime_checkable
 
 class Action(Enum):
     """Action to take when validation fails."""
+
     BLOCK = "block"
     WARN = "warn"
     REDACT = "redact"
@@ -18,6 +19,7 @@ class Action(Enum):
 @dataclass
 class Finding:
     """A single finding from a validator."""
+
     validator: str
     category: str
     description: str
@@ -29,6 +31,7 @@ class Finding:
 @dataclass
 class ValidationResult:
     """Result from running text through a validator or pipeline."""
+
     is_valid: bool
     text: str
     original_text: str
@@ -47,6 +50,7 @@ class ValidationResult:
 @runtime_checkable
 class Validator(Protocol):
     """Protocol for all validators."""
+
     name: str
 
     def validate(self, text: str) -> ValidationResult: ...

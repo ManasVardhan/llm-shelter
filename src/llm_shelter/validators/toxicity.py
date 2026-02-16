@@ -34,9 +34,7 @@ _SLURS = ToxicityCategory(
 _THREATS = ToxicityCategory(
     name="threats",
     patterns=[
-        re.compile(
-            r"(?i)\b(?:i(?:'ll| will))\b.{0,20}\b(?:kill|hurt|destroy|attack|murder)\b"
-        ),
+        re.compile(r"(?i)\b(?:i(?:'ll| will))\b.{0,20}\b(?:kill|hurt|destroy|attack|murder)\b"),
         re.compile(r"(?i)\b(?:bomb|weapon|explosive)\b.{0,20}\b(?:make|build|create|how to)\b"),
         re.compile(r"(?i)\b(?:how to)\b.{0,20}\b(?:bomb|weapon|explosive|poison|kill)\b"),
     ],
@@ -85,13 +83,15 @@ class ToxicityValidator:
                 for match in pattern.finditer(text):
                     score = cat.weight
                     max_score = max(max_score, score)
-                    findings.append(Finding(
-                        validator=self.name,
-                        category=cat.name,
-                        description=f"Toxic content ({cat.name})",
-                        span=(match.start(), match.end()),
-                        severity=score,
-                    ))
+                    findings.append(
+                        Finding(
+                            validator=self.name,
+                            category=cat.name,
+                            description=f"Toxic content ({cat.name})",
+                            span=(match.start(), match.end()),
+                            severity=score,
+                        )
+                    )
 
         triggered = max_score >= self.threshold
         return ValidationResult(

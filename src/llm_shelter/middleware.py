@@ -121,21 +121,24 @@ class ShelterMiddleware:
             body = {
                 "error": "Request blocked by content safety policy",
                 "findings": [
-                    {"category": f.category, "description": f.description}
-                    for f in result.findings
+                    {"category": f.category, "description": f.description} for f in result.findings
                 ],
             }
 
         payload = json.dumps(body).encode("utf-8")
-        await send({
-            "type": "http.response.start",
-            "status": 422,
-            "headers": [
-                [b"content-type", b"application/json"],
-                [b"content-length", str(len(payload)).encode()],
-            ],
-        })
-        await send({
-            "type": "http.response.body",
-            "body": payload,
-        })
+        await send(
+            {
+                "type": "http.response.start",
+                "status": 422,
+                "headers": [
+                    [b"content-type", b"application/json"],
+                    [b"content-length", str(len(payload)).encode()],
+                ],
+            }
+        )
+        await send(
+            {
+                "type": "http.response.body",
+                "body": payload,
+            }
+        )
