@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/hero.svg" alt="llm-shelter" width="800">
+  <img src="assets/banner.svg" alt="llm-shelter" width="800">
 </p>
 
 # 🛡️ llm-shelter
