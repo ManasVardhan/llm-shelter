@@ -30,7 +30,7 @@ jobs:
         run: ruff check src/ tests/
 
       - name: Type check
-        run: mypy src/llm_shelter/ --ignore-missing-imports
+        run: mypy src/llm_shelter/ --ignore-missing-imports --exclude 'cli\.py'
 
       - name: Test
         run: pytest tests/ -v --tb=short

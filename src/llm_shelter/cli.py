@@ -25,11 +25,11 @@ def _build_cli() -> None:
     from llm_shelter.validators.pii import PIIValidator
     from llm_shelter.validators.toxicity import ToxicityValidator
 
-    @click.group()  # type: ignore[misc]
+    @click.group()
     def cli() -> None:
         """llm-shelter: Safety guardrails for LLM applications."""
 
-    @cli.command()  # type: ignore[misc]
+    @cli.command()
     @click.argument("text", required=False)
     @click.option(
         "--file", "-f", "input_file", type=click.Path(exists=True), help="Read text from file"
@@ -70,7 +70,7 @@ def _build_cli() -> None:
         if max_chars:
             pipeline.add(LengthValidator(max_chars=max_chars), Action.BLOCK)
 
-        result = pipeline.run(text)  # type: ignore[arg-type]
+        result = pipeline.run(text)
 
         if result.has_findings:
             click.secho(f"Found {len(result.findings)} issue(s):", fg="red", bold=True)
