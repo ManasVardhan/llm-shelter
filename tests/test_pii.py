@@ -49,9 +49,15 @@ class TestSSNDetection:
         assert not result.is_valid
         assert any(f.category == "ssn" for f in result.findings)
 
-    def test_ssn_no_dashes(self, validator: PIIValidator) -> None:
+    def test_ssn_no_dashes_no_match(self, validator: PIIValidator) -> None:
+        """Bare 9-digit numbers should NOT trigger SSN detection (false positive fix)."""
         result = validator.validate("SSN: 123456789")
+        assert result.is_valid
+
+    def test_ssn_with_spaces(self, validator: PIIValidator) -> None:
+        result = validator.validate("My SSN is 123 45 6789")
         assert not result.is_valid
+        assert any(f.category == "ssn" for f in result.findings)
 
 
 class TestCreditCardDetection:
