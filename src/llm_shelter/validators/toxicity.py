@@ -20,7 +20,7 @@ _PROFANITY = ToxicityCategory(
     patterns=[
         re.compile(r"(?i)\b(?:fuck|shit|damn|ass|bitch|crap|dick|piss)\w*\b"),
     ],
-    weight=0.4,
+    weight=0.6,
 )
 
 _SLURS = ToxicityCategory(

@@ -42,7 +42,7 @@ _PHONE_US = PIIPattern(
 
 _SSN = PIIPattern(
     name="ssn",
-    pattern=re.compile(r"\b(?!000|666|9\d{2})\d{3}[\s\-]?(?!00)\d{2}[\s\-]?(?!0000)\d{4}\b"),
+    pattern=re.compile(r"\b(?!000|666|9\d{2})\d{3}[\s\-](?!00)\d{2}[\s\-](?!0000)\d{4}\b"),
     placeholder="[SSN_REDACTED]",
     severity=1.0,
 )
