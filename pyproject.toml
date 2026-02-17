@@ -4,12 +4,12 @@ build-backend = "hatchling.build"
 
 [project]
 name = "llm-shelter"
-version = "0.1.0"
+version = "0.1.1"
 description = "Safety and guardrails toolkit for LLM applications"
 readme = "README.md"
 license = "MIT"
 requires-python = ">=3.10"
-authors = [{ name = "Manas Vardhan" }]
+authors = [{ name = "Manas Vardhan", email = "manasvardhan@gmail.com" }]
 keywords = ["llm", "safety", "guardrails", "pii", "prompt-injection"]
 classifiers = [
     "Development Status :: 4 - Beta",
@@ -39,6 +39,9 @@ all = ["llm-shelter[fastapi,cli,dev]"]
 llm-shelter = "llm_shelter.cli:main"
 
 [project.urls]
+Issues = "https://github.com/ManasVardhan/llm-shelter/issues"
+Documentation = "https://github.com/ManasVardhan/llm-shelter#readme"
+Changelog = "https://github.com/ManasVardhan/llm-shelter/releases"
 Homepage = "https://github.com/manasvardhan/llm-shelter"
 Repository = "https://github.com/manasvardhan/llm-shelter"
 
