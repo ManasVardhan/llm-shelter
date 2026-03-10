@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-__version__ = "0.1.0"
+__version__ = "0.1.1"
 
 from llm_shelter.pipeline import GuardrailPipeline, ValidationResult
 from llm_shelter.validators.pii import PIIValidator
