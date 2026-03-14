@@ -4,9 +4,7 @@ from __future__ import annotations
 
 import sys
 from pathlib import Path
-from unittest.mock import patch
 
-import pytest
 
 # The CLI is built inside _build_cli() using click, so we need to extract it.
 # We'll test via subprocess-style and also unit-test the pipeline paths the CLI uses.
@@ -15,7 +13,6 @@ import pytest
 def _get_cli():
     """Extract the click CLI group for testing."""
     import click
-    from click.testing import CliRunner
 
     from llm_shelter.pipeline import Action, GuardrailPipeline
     from llm_shelter.validators.injection import InjectionValidator

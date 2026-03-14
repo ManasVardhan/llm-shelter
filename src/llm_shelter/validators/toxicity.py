@@ -1,4 +1,9 @@
-"""Keyword and pattern-based toxicity scoring."""
+"""Keyword and pattern-based toxicity scoring.
+
+Categorises toxic content into profanity, slurs, threats, and harassment.
+Each category carries a configurable weight. Text is flagged when the
+maximum matched weight meets or exceeds the validator's threshold.
+"""
 
 from __future__ import annotations
 
@@ -10,6 +15,14 @@ from llm_shelter.pipeline import Action, Finding, ValidationResult
 
 @dataclass
 class ToxicityCategory:
+    """A group of regex patterns representing one toxicity category.
+
+    Attributes:
+        name: Category identifier (e.g. ``"profanity"``, ``"threats"``).
+        patterns: List of compiled regexes that match toxic content in this category.
+        weight: Severity weight from 0.0 to 1.0, compared against the validator threshold.
+    """
+
     name: str
     patterns: list[re.Pattern[str]]
     weight: float = 1.0
@@ -75,6 +88,15 @@ class ToxicityValidator:
         self.action = action
 
     def validate(self, text: str) -> ValidationResult:
+        """Scan *text* for toxic content across all categories.
+
+        Args:
+            text: The input string to scan.
+
+        Returns:
+            A :class:`~llm_shelter.pipeline.ValidationResult`. Findings are
+            only included when the maximum matched weight meets the threshold.
+        """
         findings: list[Finding] = []
         max_score: float = 0.0
 

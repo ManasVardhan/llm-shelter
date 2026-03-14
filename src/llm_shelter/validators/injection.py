@@ -1,4 +1,9 @@
-"""Prompt injection detection using heuristic patterns."""
+"""Prompt injection detection using heuristic patterns.
+
+Covers instruction overrides, delimiter/escape attacks, role switching,
+base64 payloads, Unicode smuggling, and hex-encoded sequences. Each
+pattern carries a severity score for prioritisation.
+"""
 
 from __future__ import annotations
 
@@ -10,6 +15,14 @@ from llm_shelter.pipeline import Action, Finding, ValidationResult
 
 @dataclass
 class InjectionPattern:
+    """A named regex pattern for detecting a specific injection technique.
+
+    Attributes:
+        name: Short identifier (e.g. ``"instruction_override"``).
+        pattern: Compiled regex to match against input text.
+        severity: Score from 0.0 to 1.0 indicating how dangerous the pattern is.
+    """
+
     name: str
     pattern: re.Pattern[str]
     severity: float = 1.0
@@ -108,6 +121,16 @@ class InjectionValidator:
         self.action = action
 
     def validate(self, text: str) -> ValidationResult:
+        """Scan *text* for prompt injection patterns.
+
+        Args:
+            text: The input string to scan.
+
+        Returns:
+            A :class:`~llm_shelter.pipeline.ValidationResult` with one
+            :class:`~llm_shelter.pipeline.Finding` per matched pattern
+            whose severity meets the threshold.
+        """
         findings: list[Finding] = []
 
         for inj in self.patterns:

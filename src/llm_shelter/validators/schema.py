@@ -1,4 +1,9 @@
-"""Structured output validation against JSON schemas."""
+"""Structured output validation against JSON schemas.
+
+Validates that LLM output is well-formed JSON conforming to a subset of
+JSON Schema. Useful for enforcing structured output from function-calling
+or tool-use workflows without pulling in a full JSON Schema library.
+"""
 
 from __future__ import annotations
 
@@ -30,6 +35,15 @@ class SchemaValidator:
         self.action = action
 
     def validate(self, text: str) -> ValidationResult:
+        """Parse *text* as JSON and validate it against the configured schema.
+
+        Args:
+            text: A string expected to contain valid JSON.
+
+        Returns:
+            A :class:`~llm_shelter.pipeline.ValidationResult` with findings
+            for parse errors and schema violations.
+        """
         findings: list[Finding] = []
 
         # Try to parse JSON
@@ -65,6 +79,7 @@ class SchemaValidator:
         )
 
     def _validate_value(self, value: Any, schema: dict[str, Any], path: str) -> list[Finding]:
+        """Recursively validate a parsed JSON value against a schema node."""
         errors: list[Finding] = []
         expected_type = schema.get("type")
 

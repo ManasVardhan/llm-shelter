@@ -1,4 +1,11 @@
-"""ASGI/FastAPI middleware for llm-shelter guardrails."""
+"""ASGI/FastAPI middleware for llm-shelter guardrails.
+
+Provides :class:`ShelterMiddleware`, an ASGI middleware that intercepts
+POST/PUT/PATCH request bodies, extracts text from common JSON fields,
+and runs it through a :class:`~llm_shelter.pipeline.GuardrailPipeline`.
+Blocked requests receive a 422 response; redacted text is forwarded to
+the application with the modified body.
+"""
 
 from __future__ import annotations
 
@@ -41,6 +48,7 @@ class ShelterMiddleware:
         self.on_block = on_block
 
     async def __call__(self, scope: dict[str, Any], receive: Any, send: Any) -> None:
+        """ASGI entry point. Intercepts HTTP requests and applies guardrails."""
         if scope["type"] != "http":
             await self.app(scope, receive, send)
             return
@@ -115,6 +123,7 @@ class ShelterMiddleware:
         await self.app(scope, modified_receive, send)
 
     async def _send_blocked(self, send: Any, result: ValidationResult) -> None:
+        """Send a 422 JSON response when the pipeline blocks a request."""
         if self.on_block:
             body = self.on_block(result)
         else:

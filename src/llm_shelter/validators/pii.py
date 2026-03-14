@@ -1,4 +1,9 @@
-"""PII detection and redaction using regex patterns (no spaCy dependency)."""
+"""PII detection and redaction using regex patterns.
+
+Detects emails, US phone numbers, SSNs, credit card numbers, IP addresses,
+and AWS access keys. No external NLP dependencies are required; all detection
+is regex-based.
+"""
 
 from __future__ import annotations
 
@@ -100,6 +105,15 @@ class PIIValidator:
         self.action = action
 
     def validate(self, text: str) -> ValidationResult:
+        """Scan *text* for PII and optionally redact matches.
+
+        Args:
+            text: The input string to scan.
+
+        Returns:
+            A :class:`~llm_shelter.pipeline.ValidationResult`. When ``redact``
+            is enabled, ``result.text`` contains the redacted version.
+        """
         findings: list[Finding] = []
         redacted = text
 

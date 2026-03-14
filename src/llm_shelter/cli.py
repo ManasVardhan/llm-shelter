@@ -1,4 +1,10 @@
-"""CLI for scanning text with llm-shelter guardrails."""
+"""Command-line interface for scanning text with llm-shelter guardrails.
+
+Provides the ``llm-shelter scan`` command, which accepts text as an argument,
+from a file (``--file``), or via stdin. Supports toggling individual validators
+and displaying redacted output. Requires the ``cli`` extra (``pip install
+llm-shelter[cli]``).
+"""
 
 from __future__ import annotations
 

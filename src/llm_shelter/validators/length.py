@@ -1,4 +1,10 @@
-"""Token and character length limit validators."""
+"""Token and character length limit validators.
+
+Provides a simple guard against excessively long inputs that could
+inflate costs or abuse context windows. Token estimation uses a
+character-based heuristic; for precise counts, subclass and override
+:meth:`LengthValidator.estimate_tokens`.
+"""
 
 from __future__ import annotations
 
@@ -31,10 +37,30 @@ class LengthValidator:
 
     @staticmethod
     def estimate_tokens(text: str) -> int:
-        """Rough token estimate: split on whitespace + punctuation."""
+        """Estimate the number of tokens in *text*.
+
+        Uses a simple heuristic of approximately 4 characters per token,
+        which is reasonable for English prose. Override this method to
+        plug in a tokeniser (e.g. ``tiktoken``).
+
+        Args:
+            text: The string to estimate tokens for.
+
+        Returns:
+            Estimated token count (minimum 1).
+        """
         return max(1, int(len(text) / 4))
 
     def validate(self, text: str) -> ValidationResult:
+        """Check whether *text* exceeds configured length limits.
+
+        Args:
+            text: The input string to validate.
+
+        Returns:
+            A :class:`~llm_shelter.pipeline.ValidationResult` with findings
+            for each exceeded limit.
+        """
         findings: list[Finding] = []
 
         if self.max_chars is not None and len(text) > self.max_chars:
