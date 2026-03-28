@@ -11,20 +11,24 @@ from __future__ import annotations
 import sys
 
 
-def main() -> None:
-    """Entry point for the llm-shelter CLI."""
+def _check_click() -> None:
+    """Verify that click is installed, exiting with a helpful message if not."""
     try:
         import click  # noqa: F401
     except ImportError:
         print("CLI requires click. Install with: pip install llm-shelter[cli]", file=sys.stderr)
         sys.exit(1)
 
-    _build_cli()
 
+def _make_cli():  # type: ignore[no-untyped-def]
+    """Build and return the click CLI group.
 
-def _build_cli() -> None:
+    Separated from :func:`main` so that tests can import and invoke the
+    CLI via ``CliRunner`` without going through subprocess.
+    """
     import click
 
+    from llm_shelter import __version__
     from llm_shelter.pipeline import Action, GuardrailPipeline
     from llm_shelter.validators.injection import InjectionValidator
     from llm_shelter.validators.length import LengthValidator
@@ -32,6 +36,7 @@ def _build_cli() -> None:
     from llm_shelter.validators.toxicity import ToxicityValidator
 
     @click.group()
+    @click.version_option(version=__version__, prog_name="llm-shelter")
     def cli() -> None:
         """llm-shelter: Safety guardrails for LLM applications."""
 
@@ -81,7 +86,12 @@ def _build_cli() -> None:
         if result.has_findings:
             click.secho(f"Found {len(result.findings)} issue(s):", fg="red", bold=True)
             for finding in result.findings:
-                icon = "!!!" if finding.severity >= 0.9 else "!" if finding.severity >= 0.5 else "."
+                if finding.severity >= 0.9:
+                    icon = "!!!"
+                elif finding.severity >= 0.5:
+                    icon = "!"
+                else:
+                    icon = "."
                 click.echo(
                     f"  [{icon}] [{finding.validator}/{finding.category}] {finding.description}"
                 )
@@ -96,6 +106,13 @@ def _build_cli() -> None:
         else:
             click.secho("No issues found.", fg="green")
 
+    return cli
+
+
+def main() -> None:
+    """Entry point for the llm-shelter CLI."""
+    _check_click()
+    cli = _make_cli()
     cli()
 
 
