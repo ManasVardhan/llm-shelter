@@ -9,6 +9,10 @@ llm-shelter[cli]``).
 from __future__ import annotations
 
 import sys
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    import click
 
 
 def _check_click() -> None:
@@ -20,7 +24,7 @@ def _check_click() -> None:
         sys.exit(1)
 
 
-def _make_cli():  # type: ignore[no-untyped-def]
+def _make_cli() -> "click.Group":
     """Build and return the click CLI group.
 
     Separated from :func:`main` so that tests can import and invoke the
