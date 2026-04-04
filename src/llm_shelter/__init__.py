@@ -26,6 +26,7 @@ from llm_shelter.validators.injection import InjectionValidator
 from llm_shelter.validators.toxicity import ToxicityValidator
 from llm_shelter.validators.length import LengthValidator
 from llm_shelter.validators.schema import SchemaValidator
+from llm_shelter.validators.rules import Rule, RuleValidator
 
 __all__ = [
     "GuardrailPipeline",
@@ -35,4 +36,6 @@ __all__ = [
     "ToxicityValidator",
     "LengthValidator",
     "SchemaValidator",
+    "Rule",
+    "RuleValidator",
 ]
