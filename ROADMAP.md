@@ -1,4 +1,4 @@
-# Roadmap — llm-shelter
+# Roadmap - llm-shelter
 
 ## v0.2 (Planned)
 
