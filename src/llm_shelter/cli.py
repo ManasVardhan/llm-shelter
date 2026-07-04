@@ -40,6 +40,7 @@ def _make_cli() -> "click.Group":
     from llm_shelter.validators.injection import InjectionValidator
     from llm_shelter.validators.length import LengthValidator
     from llm_shelter.validators.pii import PIIValidator
+    from llm_shelter.validators.secrets import SecretsValidator
     from llm_shelter.validators.toxicity import ToxicityValidator
 
     @click.group()
@@ -55,6 +56,7 @@ def _make_cli() -> "click.Group":
     @click.option("--pii/--no-pii", default=True, help="Enable PII detection")
     @click.option("--injection/--no-injection", default=True, help="Enable injection detection")
     @click.option("--toxicity/--no-toxicity", default=True, help="Enable toxicity detection")
+    @click.option("--secrets/--no-secrets", default=True, help="Enable secret/credential detection")
     @click.option("--max-chars", type=int, default=None, help="Maximum character limit")
     @click.option("--redact", is_flag=True, default=False, help="Show redacted output")
     def scan(
@@ -63,6 +65,7 @@ def _make_cli() -> "click.Group":
         pii: bool,
         injection: bool,
         toxicity: bool,
+        secrets: bool,
         max_chars: int | None,
         redact: bool,
     ) -> None:
@@ -77,16 +80,7 @@ def _make_cli() -> "click.Group":
                 click.echo("Error: provide text as argument, --file, or via stdin", err=True)
                 sys.exit(1)
 
-        pipeline = GuardrailPipeline()
-
-        if pii:
-            pipeline.add(PIIValidator(redact=redact), Action.REDACT if redact else Action.WARN)
-        if injection:
-            pipeline.add(InjectionValidator(), Action.BLOCK)
-        if toxicity:
-            pipeline.add(ToxicityValidator(), Action.BLOCK)
-        if max_chars:
-            pipeline.add(LengthValidator(max_chars=max_chars), Action.BLOCK)
+        pipeline = _build_pipeline(pii, injection, toxicity, secrets, max_chars, redact)
 
         result = pipeline.run(text)
 
@@ -117,6 +111,7 @@ def _make_cli() -> "click.Group":
         pii: bool,
         injection: bool,
         toxicity: bool,
+        secrets: bool,
         max_chars: int | None,
         redact: bool,
     ) -> GuardrailPipeline:
@@ -124,6 +119,10 @@ def _make_cli() -> "click.Group":
         pipeline = GuardrailPipeline()
         if pii:
             pipeline.add(PIIValidator(redact=redact), Action.REDACT if redact else Action.WARN)
+        if secrets:
+            pipeline.add(
+                SecretsValidator(redact=redact), Action.REDACT if redact else Action.WARN
+            )
         if injection:
             pipeline.add(InjectionValidator(), Action.BLOCK)
         if toxicity:
@@ -137,6 +136,7 @@ def _make_cli() -> "click.Group":
     @click.option("--pii/--no-pii", default=True, help="Enable PII detection")
     @click.option("--injection/--no-injection", default=True, help="Enable injection detection")
     @click.option("--toxicity/--no-toxicity", default=True, help="Enable toxicity detection")
+    @click.option("--secrets/--no-secrets", default=True, help="Enable secret/credential detection")
     @click.option("--max-chars", type=int, default=None, help="Maximum character limit")
     @click.option("--redact", is_flag=True, default=False, help="Show redacted output")
     def batch(
@@ -144,6 +144,7 @@ def _make_cli() -> "click.Group":
         pii: bool,
         injection: bool,
         toxicity: bool,
+        secrets: bool,
         max_chars: int | None,
         redact: bool,
     ) -> None:
@@ -152,7 +153,7 @@ def _make_cli() -> "click.Group":
         Accepts one or more file paths. Reports findings per file.
         Exit code 2 if any file is blocked, 0 otherwise.
         """
-        pipeline = _build_pipeline(pii, injection, toxicity, max_chars, redact)
+        pipeline = _build_pipeline(pii, injection, toxicity, secrets, max_chars, redact)
         any_blocked = False
         total_findings = 0
 
@@ -185,6 +186,7 @@ def _make_cli() -> "click.Group":
     @click.option("--pii/--no-pii", default=True, help="Enable PII detection")
     @click.option("--injection/--no-injection", default=True, help="Enable injection detection")
     @click.option("--toxicity/--no-toxicity", default=True, help="Enable toxicity detection")
+    @click.option("--secrets/--no-secrets", default=True, help="Enable secret/credential detection")
     @click.option("--max-chars", type=int, default=None, help="Maximum character limit")
     def report(
         text: str | None,
@@ -192,6 +194,7 @@ def _make_cli() -> "click.Group":
         pii: bool,
         injection: bool,
         toxicity: bool,
+        secrets: bool,
         max_chars: int | None,
     ) -> None:
         """Output scan results as JSON (for CI/CD integration).
@@ -209,7 +212,7 @@ def _make_cli() -> "click.Group":
                 click.echo("Error: provide text as argument, --file, or via stdin", err=True)
                 sys.exit(1)
 
-        pipeline = _build_pipeline(pii, injection, toxicity, max_chars, redact=False)
+        pipeline = _build_pipeline(pii, injection, toxicity, secrets, max_chars, redact=False)
         result = pipeline.run(text)
 
         output = {

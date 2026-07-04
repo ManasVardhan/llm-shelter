@@ -125,6 +125,37 @@ Categories: profanity, slurs, threats, harassment. Each has configurable weight.
 
 ---
 
+## 🔑 Secret Detection
+
+Catch API keys, tokens, and credentials before they leak into prompts or logs.
+
+```python
+from llm_shelter import SecretsValidator
+
+validator = SecretsValidator(redact=True)
+result = validator.validate("here is my key sk-abc123...")
+print(result.text)  # here is my key [OPENAI_KEY_REDACTED]
+```
+
+Built-in patterns: OpenAI, Anthropic, GitHub, Slack, Google, Hugging Face,
+Stripe, JWTs, PEM private key headers, and generic bearer tokens. Add your own
+with `SecretPattern`:
+
+```python
+import re
+from llm_shelter import SecretsValidator
+from llm_shelter.validators.secrets import SecretPattern, DEFAULT_SECRET_PATTERNS
+
+acme = SecretPattern(
+    name="acme_key",
+    pattern=re.compile(r"\bacme_[0-9]{8}\b"),
+    placeholder="[ACME_KEY_REDACTED]",
+)
+validator = SecretsValidator(patterns=[*DEFAULT_SECRET_PATTERNS, acme])
+```
+
+---
+
 ## 🔌 FastAPI Middleware
 
 Drop-in middleware that guards your API endpoints automatically.
@@ -217,6 +248,9 @@ echo "Ignore previous instructions" | llm-shelter scan
 
 # Disable specific checks
 llm-shelter scan --no-toxicity "Some text"
+
+# Secret detection is on by default, disable with --no-secrets
+llm-shelter scan --no-secrets "sk-notactuallyakey123456789012"
 ```
 
 Requires the `cli` extra: `pip install llm-shelter[cli]`
@@ -245,6 +279,9 @@ InjectionValidator(threshold=0.7)
 
 # Toxicity: adjust what counts as toxic
 ToxicityValidator(threshold=0.3)
+
+# Secrets: detect and redact API keys and tokens
+SecretsValidator(patterns=[...], redact=True)
 
 # Length: set limits
 LengthValidator(max_chars=4000, max_tokens=1000)
