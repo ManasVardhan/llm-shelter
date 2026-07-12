@@ -30,6 +30,7 @@ User Input                                                          Output
 | 🛡️ | **Injection Detection** | Instruction overrides, delimiter attacks, encoding tricks |
 | 🧹 | **Toxicity Filtering** | Profanity, slurs, threats, harassment patterns |
 | 📏 | **Length Limits** | Character and estimated token limits |
+| ⏱️ | **Rate Limiting** | Sliding window caps per user, key, or IP |
 | 📋 | **Schema Validation** | Validate LLM output against JSON schemas |
 | 🔌 | **FastAPI Middleware** | Drop-in ASGI middleware for API protection |
 | 🎯 | **Decorators** | `@guard_input` and `@guard_output` for any function |
@@ -153,6 +154,44 @@ acme = SecretPattern(
 )
 validator = SecretsValidator(patterns=[*DEFAULT_SECRET_PATTERNS, acme])
 ```
+
+---
+
+## ⏱️ Rate Limiting
+
+Cap requests per user, API key, or IP before they hit your LLM API. Sliding window, thread-safe, zero dependencies.
+
+```python
+from llm_shelter import GuardrailPipeline, RateLimitValidator
+
+# 30 requests per minute, shared global bucket
+pipeline = GuardrailPipeline().add(RateLimitValidator(max_requests=30, window_seconds=60))
+
+result = pipeline.run("expensive prompt")
+if result.blocked:
+    print(result.findings[0].description)
+    # Rate limit exceeded for 'global': 30 requests per 60s. Retry in 42.7s.
+```
+
+Bucket per caller with `key_func`, or share one `RateLimiter` across validators:
+
+```python
+from llm_shelter import RateLimiter, RateLimitValidator
+
+# Derive the bucket from the text (or close over your request context)
+validator = RateLimitValidator(
+    max_requests=10,
+    window_seconds=60,
+    key_func=lambda text: current_user_id(),
+)
+
+# Inspect state at any time
+validator.limiter.remaining("user-42")    # slots left in the window
+validator.limiter.retry_after("user-42")  # seconds until a slot frees
+validator.limiter.reset("user-42")        # clear one key (or reset() for all)
+```
+
+Rejected requests never consume slots, so a hammering client is not locked out longer than the window. Put the validator first in your pipeline so rate-limited requests skip expensive checks entirely.
 
 ---
 

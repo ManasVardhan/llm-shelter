@@ -28,6 +28,7 @@ from llm_shelter.validators.length import LengthValidator
 from llm_shelter.validators.schema import SchemaValidator
 from llm_shelter.validators.secrets import SecretsValidator
 from llm_shelter.validators.rules import Rule, RuleValidator
+from llm_shelter.validators.ratelimit import RateLimiter, RateLimitValidator
 
 __all__ = [
     "GuardrailPipeline",
@@ -40,4 +41,6 @@ __all__ = [
     "SecretsValidator",
     "Rule",
     "RuleValidator",
+    "RateLimiter",
+    "RateLimitValidator",
 ]

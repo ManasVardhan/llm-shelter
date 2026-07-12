@@ -1,9 +1,11 @@
 # Roadmap - llm-shelter
 
-## v0.2 (Planned)
+## Shipped
 
 ### ⏱️ Rate Limiting Validator
-Built-in rate limiter that caps requests per user/key/IP to prevent abuse and runaway costs before they hit the LLM API.
+`RateLimitValidator` caps requests per user/key/IP with a thread-safe sliding window (`RateLimiter`), including remaining/retry_after/reset inspection and per-caller buckets via `key_func`.
+
+## v0.2 (Planned)
 
 ### 🔍 Custom Regex Patterns
 Allow users to define custom regex-based validators for domain-specific PII or sensitive content detection beyond the built-in rules.
