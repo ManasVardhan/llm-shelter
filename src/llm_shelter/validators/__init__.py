@@ -9,6 +9,7 @@ This package contains the following validators:
 * :class:`SchemaValidator` : Validate structured JSON output against a schema.
 * :class:`SecretsValidator` : Detect and redact API keys, tokens, and credentials.
 * :class:`RateLimitValidator` : Cap requests per key with a sliding window.
+* :class:`RegexValidator` : Detect and redact user-defined regex patterns.
 """
 
 from llm_shelter.validators.pii import PIIValidator
@@ -18,6 +19,7 @@ from llm_shelter.validators.length import LengthValidator
 from llm_shelter.validators.schema import SchemaValidator
 from llm_shelter.validators.secrets import SecretsValidator
 from llm_shelter.validators.ratelimit import RateLimiter, RateLimitValidator
+from llm_shelter.validators.regex import RegexPattern, RegexValidator
 
 __all__ = [
     "PIIValidator",
@@ -28,4 +30,6 @@ __all__ = [
     "SecretsValidator",
     "RateLimiter",
     "RateLimitValidator",
+    "RegexPattern",
+    "RegexValidator",
 ]

@@ -29,6 +29,7 @@ from llm_shelter.validators.schema import SchemaValidator
 from llm_shelter.validators.secrets import SecretsValidator
 from llm_shelter.validators.rules import Rule, RuleValidator
 from llm_shelter.validators.ratelimit import RateLimiter, RateLimitValidator
+from llm_shelter.validators.regex import RegexPattern, RegexValidator
 
 __all__ = [
     "GuardrailPipeline",
@@ -43,4 +44,6 @@ __all__ = [
     "RuleValidator",
     "RateLimiter",
     "RateLimitValidator",
+    "RegexPattern",
+    "RegexValidator",
 ]

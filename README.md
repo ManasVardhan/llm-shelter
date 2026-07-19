@@ -31,6 +31,7 @@ User Input                                                          Output
 | 🧹 | **Toxicity Filtering** | Profanity, slurs, threats, harassment patterns |
 | 📏 | **Length Limits** | Character and estimated token limits |
 | ⏱️ | **Rate Limiting** | Sliding window caps per user, key, or IP |
+| 🔍 | **Custom Regex Patterns** | Your own named rules for domain-specific PII |
 | 📋 | **Schema Validation** | Validate LLM output against JSON schemas |
 | 🔌 | **FastAPI Middleware** | Drop-in ASGI middleware for API protection |
 | 🎯 | **Decorators** | `@guard_input` and `@guard_output` for any function |
@@ -240,6 +241,47 @@ def call_llm(prompt: str) -> str:
 
 ---
 
+## 🔍 Custom Regex Patterns
+
+Built-in validators cover common PII, but every org has its own sensitive
+strings: employee IDs, ticket numbers, project codenames, customer references.
+`RegexValidator` lets you define named regex rules with automatic redaction:
+
+```python
+from llm_shelter import GuardrailPipeline, RegexValidator, RegexPattern
+from llm_shelter.pipeline import Action
+import re
+
+# Compact form: LABEL=REGEX specs
+validator = RegexValidator.from_specs([
+    r"employee_id=EMP-\d{5}",
+    r"ticket=JIRA-\d+",
+])
+
+result = validator.validate("Ask EMP-12345 about JIRA-101")
+print(result.text)
+# Ask [EMPLOYEE_ID_REDACTED] about [TICKET_REDACTED]
+
+# Full control: custom placeholder, severity, flags
+pattern = RegexPattern(
+    name="codename",
+    pattern=re.compile(r"project\s+phoenix", re.IGNORECASE),
+    placeholder="[CODENAME]",
+    severity=1.0,
+)
+pipeline = GuardrailPipeline()
+pipeline.add(RegexValidator([pattern]), Action.BLOCK)
+```
+
+From the CLI, pass repeatable `-p LABEL=REGEX` rules to `scan`, `batch`, and `report`:
+
+```bash
+llm-shelter scan -p 'employee_id=EMP-\d{5}' --redact "Ask EMP-12345 for access"
+llm-shelter report -p 'ticket=JIRA-\d+' --file transcript.txt
+```
+
+---
+
 ## 📋 Custom Validators
 
 Create your own validator by implementing the `Validator` protocol:
@@ -290,6 +332,9 @@ llm-shelter scan --no-toxicity "Some text"
 
 # Secret detection is on by default, disable with --no-secrets
 llm-shelter scan --no-secrets "sk-notactuallyakey123456789012"
+
+# Add custom regex rules (repeatable)
+llm-shelter scan -p 'employee_id=EMP-\d{5}' "Ask EMP-12345"
 ```
 
 Requires the `cli` extra: `pip install llm-shelter[cli]`

@@ -40,6 +40,7 @@ def _make_cli() -> "click.Group":
     from llm_shelter.validators.injection import InjectionValidator
     from llm_shelter.validators.length import LengthValidator
     from llm_shelter.validators.pii import PIIValidator
+    from llm_shelter.validators.regex import RegexValidator
     from llm_shelter.validators.secrets import SecretsValidator
     from llm_shelter.validators.toxicity import ToxicityValidator
 
@@ -59,6 +60,13 @@ def _make_cli() -> "click.Group":
     @click.option("--secrets/--no-secrets", default=True, help="Enable secret/credential detection")
     @click.option("--max-chars", type=int, default=None, help="Maximum character limit")
     @click.option("--redact", is_flag=True, default=False, help="Show redacted output")
+    @click.option(
+        "--pattern",
+        "-p",
+        "patterns",
+        multiple=True,
+        help="Custom regex rule as LABEL=REGEX (repeatable)",
+    )
     def scan(
         text: str | None,
         input_file: str | None,
@@ -68,6 +76,7 @@ def _make_cli() -> "click.Group":
         secrets: bool,
         max_chars: int | None,
         redact: bool,
+        patterns: tuple[str, ...],
     ) -> None:
         """Scan text for safety issues."""
         if input_file:
@@ -80,7 +89,7 @@ def _make_cli() -> "click.Group":
                 click.echo("Error: provide text as argument, --file, or via stdin", err=True)
                 sys.exit(1)
 
-        pipeline = _build_pipeline(pii, injection, toxicity, secrets, max_chars, redact)
+        pipeline = _build_pipeline(pii, injection, toxicity, secrets, max_chars, redact, patterns)
 
         result = pipeline.run(text)
 
@@ -114,6 +123,7 @@ def _make_cli() -> "click.Group":
         secrets: bool,
         max_chars: int | None,
         redact: bool,
+        patterns: tuple[str, ...] = (),
     ) -> GuardrailPipeline:
         """Build a pipeline from the standard CLI flags."""
         pipeline = GuardrailPipeline()
@@ -123,6 +133,13 @@ def _make_cli() -> "click.Group":
             pipeline.add(
                 SecretsValidator(redact=redact), Action.REDACT if redact else Action.WARN
             )
+        if patterns:
+            try:
+                custom = RegexValidator.from_specs(list(patterns), redact=redact)
+            except ValueError as exc:
+                click.echo(f"Error: {exc}", err=True)
+                sys.exit(1)
+            pipeline.add(custom, Action.REDACT if redact else Action.WARN)
         if injection:
             pipeline.add(InjectionValidator(), Action.BLOCK)
         if toxicity:
@@ -139,6 +156,13 @@ def _make_cli() -> "click.Group":
     @click.option("--secrets/--no-secrets", default=True, help="Enable secret/credential detection")
     @click.option("--max-chars", type=int, default=None, help="Maximum character limit")
     @click.option("--redact", is_flag=True, default=False, help="Show redacted output")
+    @click.option(
+        "--pattern",
+        "-p",
+        "patterns",
+        multiple=True,
+        help="Custom regex rule as LABEL=REGEX (repeatable)",
+    )
     def batch(
         files: tuple[str, ...],
         pii: bool,
@@ -147,13 +171,14 @@ def _make_cli() -> "click.Group":
         secrets: bool,
         max_chars: int | None,
         redact: bool,
+        patterns: tuple[str, ...],
     ) -> None:
         """Scan multiple files for safety issues.
 
         Accepts one or more file paths. Reports findings per file.
         Exit code 2 if any file is blocked, 0 otherwise.
         """
-        pipeline = _build_pipeline(pii, injection, toxicity, secrets, max_chars, redact)
+        pipeline = _build_pipeline(pii, injection, toxicity, secrets, max_chars, redact, patterns)
         any_blocked = False
         total_findings = 0
 
@@ -188,6 +213,13 @@ def _make_cli() -> "click.Group":
     @click.option("--toxicity/--no-toxicity", default=True, help="Enable toxicity detection")
     @click.option("--secrets/--no-secrets", default=True, help="Enable secret/credential detection")
     @click.option("--max-chars", type=int, default=None, help="Maximum character limit")
+    @click.option(
+        "--pattern",
+        "-p",
+        "patterns",
+        multiple=True,
+        help="Custom regex rule as LABEL=REGEX (repeatable)",
+    )
     def report(
         text: str | None,
         input_file: str | None,
@@ -196,6 +228,7 @@ def _make_cli() -> "click.Group":
         toxicity: bool,
         secrets: bool,
         max_chars: int | None,
+        patterns: tuple[str, ...],
     ) -> None:
         """Output scan results as JSON (for CI/CD integration).
 
@@ -212,7 +245,9 @@ def _make_cli() -> "click.Group":
                 click.echo("Error: provide text as argument, --file, or via stdin", err=True)
                 sys.exit(1)
 
-        pipeline = _build_pipeline(pii, injection, toxicity, secrets, max_chars, redact=False)
+        pipeline = _build_pipeline(
+            pii, injection, toxicity, secrets, max_chars, redact=False, patterns=patterns
+        )
         result = pipeline.run(text)
 
         output = {
