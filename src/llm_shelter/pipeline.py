@@ -108,6 +108,15 @@ class GuardrailPipeline:
     def __init__(self) -> None:
         self._validators: list[tuple[Validator, Action]] = []
 
+    @property
+    def validators(self) -> list[tuple[Validator, Action]]:
+        """The configured (validator, action) pairs, in execution order.
+
+        Returns a copy, so mutating the returned list does not affect
+        the pipeline.
+        """
+        return list(self._validators)
+
     def add(self, validator: Validator, action: Action = Action.BLOCK) -> "GuardrailPipeline":
         """Add a validator to the pipeline.
 

@@ -269,6 +269,117 @@ def _make_cli() -> "click.Group":
         if result.blocked:
             sys.exit(2)
 
+    @cli.command()
+    @click.option("--pii/--no-pii", default=True, help="Enable PII detection")
+    @click.option("--injection/--no-injection", default=True, help="Enable injection detection")
+    @click.option("--toxicity/--no-toxicity", default=True, help="Enable toxicity detection")
+    @click.option("--secrets/--no-secrets", default=True, help="Enable secret/credential detection")
+    @click.option("--max-chars", type=int, default=None, help="Maximum character limit")
+    @click.option("--redact", is_flag=True, default=False, help="Redact instead of warn")
+    @click.option(
+        "--pattern",
+        "-p",
+        "patterns",
+        multiple=True,
+        help="Custom regex rule as LABEL=REGEX (repeatable)",
+    )
+    @click.option(
+        "--rate-limit",
+        type=int,
+        default=None,
+        help="Include a rate limiter (max requests per --rate-window) in the audited pipeline",
+    )
+    @click.option(
+        "--rate-window",
+        type=float,
+        default=60.0,
+        help="Rate limit window in seconds (used with --rate-limit)",
+    )
+    @click.option("--json-output", is_flag=True, default=False, help="Output the audit as JSON")
+    @click.option(
+        "--fail-on-gaps",
+        is_flag=True,
+        default=False,
+        help="Exit 1 if any automated check fails (for CI)",
+    )
+    def audit(
+        pii: bool,
+        injection: bool,
+        toxicity: bool,
+        secrets: bool,
+        max_chars: int | None,
+        redact: bool,
+        patterns: tuple[str, ...],
+        rate_limit: int | None,
+        rate_window: float,
+        json_output: bool,
+        fail_on_gaps: bool,
+    ) -> None:
+        """Audit the configured pipeline against the OWASP LLM Top 10.
+
+        Builds the same pipeline the scan command would run (plus an
+        optional rate limiter) and reports which OWASP Top 10 for LLM
+        Applications risks it covers, with remediation guidance for gaps.
+        """
+        from llm_shelter.owasp import CheckStatus, audit_pipeline
+        from llm_shelter.validators.ratelimit import RateLimitValidator
+
+        pipeline = _build_pipeline(pii, injection, toxicity, secrets, max_chars, redact, patterns)
+        if rate_limit is not None:
+            if rate_limit <= 0 or rate_window <= 0:
+                click.echo("Error: --rate-limit and --rate-window must be positive", err=True)
+                sys.exit(1)
+            pipeline.add(
+                RateLimitValidator(max_requests=rate_limit, window_seconds=rate_window),
+                Action.BLOCK,
+            )
+
+        result = audit_pipeline(pipeline)
+
+        if json_output:
+            payload = {
+                "checks": [
+                    {
+                        "id": c.check_id,
+                        "title": c.title,
+                        "status": c.status.value,
+                        "automated": c.automated,
+                        "evidence": c.evidence,
+                        "remediation": c.remediation,
+                    }
+                    for c in result.checks
+                ],
+                "summary": {
+                    "pass": len(result.passed),
+                    "partial": len(result.partial),
+                    "fail": len(result.failed),
+                    "manual": len(result.manual),
+                    "has_gaps": result.has_gaps,
+                },
+            }
+            click.echo(json.dumps(payload, indent=2))
+        else:
+            click.secho("OWASP Top 10 for LLM Applications audit", bold=True)
+            click.echo()
+            icons = {
+                CheckStatus.PASS: ("PASS", "green"),
+                CheckStatus.PARTIAL: ("PART", "yellow"),
+                CheckStatus.FAIL: ("FAIL", "red"),
+                CheckStatus.MANUAL: ("MANL", "cyan"),
+            }
+            for check in result.checks:
+                label, color = icons[check.status]
+                click.secho(f"[{label}] {check.check_id} {check.title}", fg=color, bold=True)
+                for note in check.evidence:
+                    click.echo(f"       {note}")
+                if check.status != CheckStatus.PASS and check.remediation:
+                    click.echo(f"       Fix: {check.remediation}")
+            click.echo()
+            click.echo(f"Summary: {result.summary()}")
+
+        if fail_on_gaps and result.has_gaps:
+            sys.exit(1)
+
     return cli
 
 

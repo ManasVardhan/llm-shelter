@@ -33,6 +33,7 @@ User Input                                                          Output
 | ⏱️ | **Rate Limiting** | Sliding window caps per user, key, or IP |
 | 🔍 | **Custom Regex Patterns** | Your own named rules for domain-specific PII |
 | 📋 | **Schema Validation** | Validate LLM output against JSON schemas |
+| ✅ | **OWASP LLM Top 10 Audit** | Pass/fail checklist of your pipeline against OWASP risks |
 | 🔌 | **FastAPI Middleware** | Drop-in ASGI middleware for API protection |
 | 🎯 | **Decorators** | `@guard_input` and `@guard_output` for any function |
 | ⚡ | **CLI** | Scan text from the command line |
@@ -338,6 +339,52 @@ llm-shelter scan -p 'employee_id=EMP-\d{5}' "Ask EMP-12345"
 ```
 
 Requires the `cli` extra: `pip install llm-shelter[cli]`
+
+---
+
+## ✅ OWASP LLM Top 10 Audit
+
+Check how well your guardrail configuration covers the OWASP Top 10 for LLM Applications. Risks that llm-shelter validators can mitigate (prompt injection, insecure output handling, model DoS, sensitive information disclosure) are checked automatically; architectural risks are listed as manual review items with remediation guidance.
+
+```bash
+# Audit the default scan pipeline
+llm-shelter audit
+
+# Audit with full coverage flags
+llm-shelter audit --max-chars 4000 --rate-limit 60 --rate-window 60
+
+# JSON for dashboards and CI artifacts
+llm-shelter audit --json-output
+
+# CI gate: exit 1 if any automated check fails outright
+llm-shelter audit --fail-on-gaps
+```
+
+Sample output:
+
+```
+[PASS] LLM01 Prompt Injection
+       InjectionValidator present with Action.BLOCK.
+[PART] LLM02 Insecure Output Handling
+       Output validation present: toxicity.
+       Fix: Add SchemaValidator to enforce structured output ...
+[FAIL] LLM04 Model Denial of Service
+       No rate limiting or input length limits found.
+       Fix: Add RateLimitValidator (per-user sliding window) and LengthValidator ...
+```
+
+Audit your own pipeline from Python:
+
+```python
+from llm_shelter import GuardrailPipeline, InjectionValidator, audit_pipeline
+from llm_shelter.pipeline import Action
+
+pipeline = GuardrailPipeline().add(InjectionValidator(), Action.BLOCK)
+audit = audit_pipeline(pipeline)
+print(audit.summary())          # "1 pass, 0 partial, 3 fail, 6 manual review"
+for check in audit.failed:
+    print(check.check_id, check.remediation)
+```
 
 ---
 

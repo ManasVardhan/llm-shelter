@@ -21,6 +21,7 @@ from __future__ import annotations
 __version__ = "0.1.1"
 
 from llm_shelter.pipeline import GuardrailPipeline, ValidationResult
+from llm_shelter.owasp import CheckStatus, OwaspAudit, OwaspCheck, audit_pipeline
 from llm_shelter.validators.pii import PIIValidator
 from llm_shelter.validators.injection import InjectionValidator
 from llm_shelter.validators.toxicity import ToxicityValidator
@@ -46,4 +47,8 @@ __all__ = [
     "RateLimitValidator",
     "RegexPattern",
     "RegexValidator",
+    "CheckStatus",
+    "OwaspAudit",
+    "OwaspCheck",
+    "audit_pipeline",
 ]
