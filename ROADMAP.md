@@ -11,10 +11,13 @@
 ### 🔍 Custom Regex Patterns
 `RegexValidator` with named `RegexPattern` rules for domain-specific PII (employee IDs, tickets, codenames), auto-derived redaction placeholders, `from_specs` LABEL=REGEX parsing, and a repeatable `-p` flag on the scan, batch, and report CLI commands.
 
+### 🧩 FastAPI / Flask Middleware
+Drop-in middleware for both major Python web stacks: `ShelterMiddleware` (ASGI, FastAPI/Starlette) and `ShelterWSGIMiddleware` (WSGI, Flask/Django/Bottle). Both intercept POST/PUT/PATCH bodies, extract text from common JSON fields, redact in place with corrected Content-Length, return 422 with findings on block, and support path scoping plus a custom `on_block` payload.
+
 ## v0.2 (Planned)
 
-### 🧩 FastAPI / Flask Middleware
-Drop-in middleware for popular Python web frameworks that automatically validates inputs and outputs through llm-shelter's pipeline.
+### 📊 Audit Log Sink
+Structured JSONL logging of every pipeline decision (validator, action, findings, latency) for compliance trails and offline analysis.
 
 ---
 

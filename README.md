@@ -35,6 +35,7 @@ User Input                                                          Output
 | 📋 | **Schema Validation** | Validate LLM output against JSON schemas |
 | ✅ | **OWASP LLM Top 10 Audit** | Pass/fail checklist of your pipeline against OWASP risks |
 | 🔌 | **FastAPI Middleware** | Drop-in ASGI middleware for API protection |
+| 🧪 | **Flask Middleware** | Drop-in WSGI middleware for Flask and friends |
 | 🎯 | **Decorators** | `@guard_input` and `@guard_output` for any function |
 | ⚡ | **CLI** | Scan text from the command line |
 
@@ -219,6 +220,29 @@ app.add_middleware(ShelterMiddleware, pipeline=pipeline, paths=["/chat"])
 - PII is redacted before reaching your handler
 - Injection attempts get a `422` response with details
 - Only guards POST/PUT/PATCH on specified paths
+
+---
+
+## 🧪 Flask Middleware
+
+The same guardrails for Flask (or any WSGI app: Django WSGI mode, Bottle, etc).
+
+```python
+from flask import Flask
+from llm_shelter import GuardrailPipeline, PIIValidator, InjectionValidator
+from llm_shelter.wsgi import ShelterWSGIMiddleware
+from llm_shelter.pipeline import Action
+
+app = Flask(__name__)
+pipeline = (
+    GuardrailPipeline()
+    .add(PIIValidator(redact=True), Action.REDACT)
+    .add(InjectionValidator(), Action.BLOCK)
+)
+app.wsgi_app = ShelterWSGIMiddleware(app.wsgi_app, pipeline=pipeline, paths=["/chat"])
+```
+
+Behaves exactly like the ASGI middleware: text is pulled from common JSON fields (`text`, `message`, `content`, `prompt`, `input`, `query`), redacted bodies are forwarded with an updated `Content-Length`, and blocked requests get a `422` JSON response. Pass `on_block=` for a custom error payload. Zero dependencies: it speaks plain WSGI, so `pip install llm-shelter` is enough.
 
 ---
 
@@ -431,6 +455,9 @@ pip install llm-shelter
 
 # With FastAPI middleware
 pip install llm-shelter[fastapi]
+
+# With Flask (only needed for Flask itself, the middleware is dependency-free)
+pip install llm-shelter[flask]
 
 # With CLI
 pip install llm-shelter[cli]

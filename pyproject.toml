@@ -26,6 +26,7 @@ dependencies = []
 
 [project.optional-dependencies]
 fastapi = ["fastapi>=0.100.0", "uvicorn>=0.23.0"]
+flask = ["flask>=2.0"]
 cli = ["click>=8.0"]
 dev = [
     "pytest>=7.0",
@@ -33,7 +34,7 @@ dev = [
     "ruff>=0.1.0",
     "mypy>=1.0",
 ]
-all = ["llm-shelter[fastapi,cli,dev]"]
+all = ["llm-shelter[fastapi,flask,cli,dev]"]
 
 [project.scripts]
 llm-shelter = "llm_shelter.cli:main"
