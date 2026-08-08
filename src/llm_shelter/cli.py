@@ -67,6 +67,13 @@ def _make_cli() -> "click.Group":
         multiple=True,
         help="Custom regex rule as LABEL=REGEX (repeatable)",
     )
+    @click.option(
+        "--audit-log",
+        "audit_log",
+        type=click.Path(),
+        default=None,
+        help="Append this scan's decision to a JSONL audit log file",
+    )
     def scan(
         text: str | None,
         input_file: str | None,
@@ -77,6 +84,7 @@ def _make_cli() -> "click.Group":
         max_chars: int | None,
         redact: bool,
         patterns: tuple[str, ...],
+        audit_log: str | None,
     ) -> None:
         """Scan text for safety issues."""
         if input_file:
@@ -90,6 +98,10 @@ def _make_cli() -> "click.Group":
                 sys.exit(1)
 
         pipeline = _build_pipeline(pii, injection, toxicity, secrets, max_chars, redact, patterns)
+        if audit_log:
+            from llm_shelter.auditlog import AuditLogger
+
+            pipeline.audit = AuditLogger(audit_log)
 
         result = pipeline.run(text)
 
@@ -379,6 +391,62 @@ def _make_cli() -> "click.Group":
 
         if fail_on_gaps and result.has_gaps:
             sys.exit(1)
+
+    @cli.command("audit-log")
+    @click.argument("log_file", type=click.Path(exists=True))
+    @click.option("--json-output", is_flag=True, default=False, help="Output the summary as JSON")
+    @click.option(
+        "--tail",
+        "tail_n",
+        type=int,
+        default=None,
+        help="Show the last N decisions instead of the summary",
+    )
+    def audit_log_cmd(log_file: str, json_output: bool, tail_n: int | None) -> None:
+        """Summarize a JSONL audit log written by an AuditLogger.
+
+        Shows total runs, actions taken, findings by validator and
+        category, and latency statistics. Use --tail N to inspect the
+        most recent decisions instead.
+        """
+        from llm_shelter.auditlog import iter_records, summarize
+
+        records = list(iter_records(log_file))
+        if not records:
+            click.echo("Audit log is empty.")
+            return
+
+        if tail_n is not None:
+            for record in records[-tail_n:]:
+                status = "BLOCKED" if record.blocked else record.action.upper()
+                findings = (
+                    ", ".join(
+                        f"{f.get('validator')}/{f.get('category')}" for f in record.findings
+                    )
+                    or "-"
+                )
+                click.echo(
+                    f"{record.timestamp}  {status:<11} "
+                    f"{record.latency_ms:>8.2f}ms  findings: {findings}"
+                )
+            return
+
+        stats = summarize(records)
+        if json_output:
+            click.echo(json.dumps(stats, indent=2))
+            return
+
+        click.secho("Audit log summary", bold=True)
+        click.echo(f"  Runs:        {stats['total_runs']}")
+        click.echo(f"  Blocked:     {stats['blocked']}")
+        for action, count in sorted(stats["by_action"].items()):
+            click.echo(f"    {action}: {count}")
+        click.echo(f"  Findings:    {stats['findings_total']}")
+        for validator, count in sorted(stats["findings_by_validator"].items()):
+            click.echo(f"    {validator}: {count}")
+        click.echo(
+            f"  Latency:     avg {stats['avg_latency_ms']}ms, max {stats['max_latency_ms']}ms"
+        )
 
     return cli
 

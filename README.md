@@ -34,6 +34,7 @@ User Input                                                          Output
 | 🔍 | **Custom Regex Patterns** | Your own named rules for domain-specific PII |
 | 📋 | **Schema Validation** | Validate LLM output against JSON schemas |
 | ✅ | **OWASP LLM Top 10 Audit** | Pass/fail checklist of your pipeline against OWASP risks |
+| 📊 | **Audit Log Sink** | JSONL compliance trail of every pipeline decision |
 | 🔌 | **FastAPI Middleware** | Drop-in ASGI middleware for API protection |
 | 🧪 | **Flask Middleware** | Drop-in WSGI middleware for Flask and friends |
 | 🎯 | **Decorators** | `@guard_input` and `@guard_output` for any function |
@@ -360,9 +361,47 @@ llm-shelter scan --no-secrets "sk-notactuallyakey123456789012"
 
 # Add custom regex rules (repeatable)
 llm-shelter scan -p 'employee_id=EMP-\d{5}' "Ask EMP-12345"
+
+# Record every decision to a JSONL audit log, then inspect it
+llm-shelter scan --audit-log audit.jsonl "My email is test@example.com"
+llm-shelter audit-log audit.jsonl              # summary
+llm-shelter audit-log audit.jsonl --tail 10    # last 10 decisions
+llm-shelter audit-log audit.jsonl --json-output
 ```
 
 Requires the `cli` extra: `pip install llm-shelter[cli]`
+
+---
+
+## 📊 Audit Log Sink
+
+Keep a structured compliance trail of every pipeline decision. Attach an `AuditLogger` and each `run()` appends one JSON line with the action taken, per-validator findings and latency, input/output sizes, and optional caller context. The scanned text itself is never logged:
+
+```python
+from llm_shelter import AuditLogger, GuardrailPipeline, PIIValidator, InjectionValidator
+from llm_shelter.pipeline import Action
+
+pipeline = GuardrailPipeline(audit=AuditLogger("shelter-audit.jsonl"))
+pipeline.add(PIIValidator(redact=True), Action.REDACT)
+pipeline.add(InjectionValidator(), Action.BLOCK)
+
+pipeline.run("my email is a@b.com", context={"user": "alice", "request_id": "r-42"})
+```
+
+Each line looks like:
+
+```json
+{"timestamp": "2026-08-08T05:00:00+00:00", "action": "redact", "is_valid": true,
+ "blocked": false, "input_chars": 19, "output_chars": 32, "redacted": true,
+ "latency_ms": 0.41,
+ "validators": [{"name": "pii", "action": "redact", "findings": 1, "latency_ms": 0.32},
+                {"name": "injection", "action": "block", "findings": 0, "latency_ms": 0.07}],
+ "findings": [{"validator": "pii", "category": "email", "severity": 0.8,
+               "description": "Email address detected"}],
+ "context": {"user": "alice", "request_id": "r-42"}}
+```
+
+Analyze logs offline with `iter_records()` and `summarize()`, or from the terminal with `llm-shelter audit-log`. Writes are thread-safe, malformed lines from interrupted writes are skipped on read, and `AuditLogger(stream=...)` sends records to any open text stream (stdout, a socket, a log shipper) instead of a file.
 
 ---
 

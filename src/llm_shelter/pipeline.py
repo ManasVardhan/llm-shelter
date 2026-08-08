@@ -10,9 +10,13 @@ findings for ``WARN``.
 
 from __future__ import annotations
 
+import time
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Protocol, runtime_checkable
+from typing import TYPE_CHECKING, Any, Protocol, runtime_checkable
+
+if TYPE_CHECKING:
+    from llm_shelter.auditlog import AuditLogger
 
 
 class Action(Enum):
@@ -103,10 +107,22 @@ class GuardrailPipeline:
         pipeline.add(PIIValidator(action=Action.REDACT))
         pipeline.add(InjectionValidator(action=Action.BLOCK))
         result = pipeline.run("my email is test@example.com")
+
+    Pass an :class:`~llm_shelter.auditlog.AuditLogger` to record every
+    decision as a JSONL compliance trail::
+
+        pipeline = GuardrailPipeline(audit=AuditLogger("audit.jsonl"))
     """
 
-    def __init__(self) -> None:
+    def __init__(self, audit: "AuditLogger | None" = None) -> None:
+        """Create a pipeline, optionally attached to an audit log sink.
+
+        Args:
+            audit: When given, every :meth:`run` call appends one
+                :class:`~llm_shelter.auditlog.AuditRecord` to this logger.
+        """
         self._validators: list[tuple[Validator, Action]] = []
+        self.audit = audit
 
     @property
     def validators(self) -> list[tuple[Validator, Action]]:
@@ -130,7 +146,7 @@ class GuardrailPipeline:
         self._validators.append((validator, action))
         return self
 
-    def run(self, text: str) -> ValidationResult:
+    def run(self, text: str, context: dict[str, Any] | None = None) -> ValidationResult:
         """Run text through all validators in sequence.
 
         Validators execute in the order they were added. On ``BLOCK``, the
@@ -140,29 +156,45 @@ class GuardrailPipeline:
 
         Args:
             text: The input text to validate.
+            context: Optional metadata (user id, request id, ...) attached
+                to the audit record when an audit logger is configured.
+                Ignored otherwise.
 
         Returns:
             A :class:`ValidationResult` summarising all findings and the
             final action taken.
         """
+        started = time.perf_counter()
         original = text
         all_findings: list[Finding] = []
         final_action = Action.PASSTHROUGH
+        validator_runs: list[dict[str, Any]] = []
 
         for validator, action in self._validators:
+            v_started = time.perf_counter()
             result = validator.validate(text)
+            validator_runs.append(
+                {
+                    "name": validator.name,
+                    "action": action.value,
+                    "findings": len(result.findings),
+                    "latency_ms": round((time.perf_counter() - v_started) * 1000, 3),
+                }
+            )
 
             if result.has_findings:
                 all_findings.extend(result.findings)
 
                 if action == Action.BLOCK:
-                    return ValidationResult(
+                    blocked = ValidationResult(
                         is_valid=False,
                         text=text,
                         original_text=original,
                         findings=all_findings,
                         action_taken=Action.BLOCK,
                     )
+                    self._emit_audit(blocked, validator_runs, started, context)
+                    return blocked
                 elif action == Action.REDACT:
                     text = result.text
                     if final_action != Action.BLOCK:
@@ -172,10 +204,32 @@ class GuardrailPipeline:
                         final_action = Action.WARN
 
         is_valid = final_action in (Action.PASSTHROUGH, Action.WARN)
-        return ValidationResult(
+        final = ValidationResult(
             is_valid=is_valid,
             text=text,
             original_text=original,
             findings=all_findings,
             action_taken=final_action,
         )
+        self._emit_audit(final, validator_runs, started, context)
+        return final
+
+    def _emit_audit(
+        self,
+        result: ValidationResult,
+        validator_runs: list[dict[str, Any]],
+        started: float,
+        context: dict[str, Any] | None,
+    ) -> None:
+        """Write one audit record for *result* if an audit logger is attached."""
+        if self.audit is None:
+            return
+        from llm_shelter.auditlog import build_record
+
+        record = build_record(
+            result,
+            validators=validator_runs,
+            latency_ms=(time.perf_counter() - started) * 1000,
+            context=context,
+        )
+        self.audit.log(record)

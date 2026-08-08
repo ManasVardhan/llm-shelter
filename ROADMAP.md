@@ -14,10 +14,13 @@
 ### 🧩 FastAPI / Flask Middleware
 Drop-in middleware for both major Python web stacks: `ShelterMiddleware` (ASGI, FastAPI/Starlette) and `ShelterWSGIMiddleware` (WSGI, Flask/Django/Bottle). Both intercept POST/PUT/PATCH bodies, extract text from common JSON fields, redact in place with corrected Content-Length, return 422 with findings on block, and support path scoping plus a custom `on_block` payload.
 
+### 📊 Audit Log Sink
+`GuardrailPipeline(audit=AuditLogger(...))` appends one JSON line per decision: action taken, per-validator findings and latency, input/output sizes, and optional caller context, with the scanned text never logged. Thread-safe file or stream sinks, `iter_records()` / `summarize()` for offline analysis, a `--audit-log` flag on the scan command, and an `audit-log` CLI command with summary, `--tail`, and `--json-output` views.
+
 ## v0.2 (Planned)
 
-### 📊 Audit Log Sink
-Structured JSONL logging of every pipeline decision (validator, action, findings, latency) for compliance trails and offline analysis.
+### 🧰 Policy Files
+Define a full guardrail pipeline in a YAML policy file (validators, actions, thresholds, custom patterns), load it with `GuardrailPipeline.from_policy()` or `--policy` on the CLI, and share one reviewed policy across services.
 
 ---
 

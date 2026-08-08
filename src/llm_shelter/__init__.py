@@ -21,6 +21,7 @@ from __future__ import annotations
 __version__ = "0.1.1"
 
 from llm_shelter.pipeline import GuardrailPipeline, ValidationResult
+from llm_shelter.auditlog import AuditLogger, AuditRecord, iter_records, summarize
 from llm_shelter.owasp import CheckStatus, OwaspAudit, OwaspCheck, audit_pipeline
 from llm_shelter.validators.pii import PIIValidator
 from llm_shelter.validators.injection import InjectionValidator
@@ -35,6 +36,10 @@ from llm_shelter.validators.regex import RegexPattern, RegexValidator
 __all__ = [
     "GuardrailPipeline",
     "ValidationResult",
+    "AuditLogger",
+    "AuditRecord",
+    "iter_records",
+    "summarize",
     "PIIValidator",
     "InjectionValidator",
     "ToxicityValidator",
