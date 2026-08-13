@@ -17,10 +17,13 @@ Drop-in middleware for both major Python web stacks: `ShelterMiddleware` (ASGI, 
 ### 📊 Audit Log Sink
 `GuardrailPipeline(audit=AuditLogger(...))` appends one JSON line per decision: action taken, per-validator findings and latency, input/output sizes, and optional caller context, with the scanned text never logged. Thread-safe file or stream sinks, `iter_records()` / `summarize()` for offline analysis, a `--audit-log` flag on the scan command, and an `audit-log` CLI command with summary, `--tail`, and `--json-output` views.
 
+### 🧰 Policy Files
+Declarative YAML/JSON policy files that define the full pipeline (validators, actions, thresholds, custom regex patterns, optional audit log), loaded with `GuardrailPipeline.from_policy()`, `load_pipeline()`, or `--policy` on the scan command. A `policy` CLI command validates a file and prints the resolved pipeline (text or JSON) with exit code 1 on invalid policies for CI gating. Strict validation rejects unknown types, keys, and actions with precise error locations.
+
 ## v0.2 (Planned)
 
-### 🧰 Policy Files
-Define a full guardrail pipeline in a YAML policy file (validators, actions, thresholds, custom patterns), load it with `GuardrailPipeline.from_policy()` or `--policy` on the CLI, and share one reviewed policy across services.
+### 🌐 Policy Registry
+Fetch policy files from HTTPS URLs with checksum pinning, so fleets of services can pull one centrally reviewed guardrail policy at startup.
 
 ---
 

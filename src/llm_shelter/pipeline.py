@@ -124,6 +124,30 @@ class GuardrailPipeline:
         self._validators: list[tuple[Validator, Action]] = []
         self.audit = audit
 
+    @classmethod
+    def from_policy(cls, path: str) -> "GuardrailPipeline":
+        """Build a pipeline from a YAML or JSON policy file.
+
+        Example::
+
+            pipeline = GuardrailPipeline.from_policy("guardrails.yaml")
+            result = pipeline.run(user_input)
+
+        Args:
+            path: Path to the policy file. See :mod:`llm_shelter.policy`
+                for the policy format.
+
+        Returns:
+            A configured :class:`GuardrailPipeline`.
+
+        Raises:
+            llm_shelter.policy.PolicyError: If the file cannot be read
+                or the policy is invalid.
+        """
+        from llm_shelter.policy import load_pipeline
+
+        return load_pipeline(path)
+
     @property
     def validators(self) -> list[tuple[Validator, Action]]:
         """The configured (validator, action) pairs, in execution order.

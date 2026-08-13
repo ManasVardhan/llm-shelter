@@ -28,13 +28,15 @@ dependencies = []
 fastapi = ["fastapi>=0.100.0", "uvicorn>=0.23.0"]
 flask = ["flask>=2.0"]
 cli = ["click>=8.0"]
+policy = ["pyyaml>=6.0"]
 dev = [
     "pytest>=7.0",
     "pytest-asyncio>=0.21",
     "ruff>=0.1.0",
     "mypy>=1.0",
+    "types-PyYAML>=6.0",
 ]
-all = ["llm-shelter[fastapi,flask,cli,dev]"]
+all = ["llm-shelter[fastapi,flask,cli,policy,dev]"]
 
 [project.scripts]
 llm-shelter = "llm_shelter.cli:main"

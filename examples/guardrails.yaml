@@ -1,0 +1,40 @@
+# Example llm-shelter policy file.
+#
+# Validate it:   llm-shelter policy examples/guardrails.yaml
+# Use it:        llm-shelter scan --policy examples/guardrails.yaml "some text"
+# In code:       GuardrailPipeline.from_policy("examples/guardrails.yaml")
+#
+# YAML policies need pyyaml: pip install llm-shelter[policy]
+# JSON policies (same structure) work with zero extra dependencies.
+
+version: 1
+
+# Optional: append every decision to a JSONL audit log.
+# audit_log: guardrails-audit.jsonl
+
+validators:
+  - type: pii
+    action: redact
+
+  - type: secrets
+    action: redact
+
+  - type: injection
+    action: block
+    threshold: 0.5
+
+  - type: toxicity
+    action: warn
+    threshold: 0.6
+
+  - type: length
+    action: block
+    max_chars: 8000
+
+  - type: regex
+    action: redact
+    patterns:
+      - name: employee_id
+        regex: "EMP-\\d{5}"
+        placeholder: "[EMPLOYEE_ID]"
+        severity: 0.9

@@ -74,6 +74,13 @@ def _make_cli() -> "click.Group":
         default=None,
         help="Append this scan's decision to a JSONL audit log file",
     )
+    @click.option(
+        "--policy",
+        "policy_file",
+        type=click.Path(exists=True),
+        default=None,
+        help="Build the pipeline from a YAML/JSON policy file (overrides validator flags)",
+    )
     def scan(
         text: str | None,
         input_file: str | None,
@@ -85,6 +92,7 @@ def _make_cli() -> "click.Group":
         redact: bool,
         patterns: tuple[str, ...],
         audit_log: str | None,
+        policy_file: str | None,
     ) -> None:
         """Scan text for safety issues."""
         if input_file:
@@ -97,7 +105,18 @@ def _make_cli() -> "click.Group":
                 click.echo("Error: provide text as argument, --file, or via stdin", err=True)
                 sys.exit(1)
 
-        pipeline = _build_pipeline(pii, injection, toxicity, secrets, max_chars, redact, patterns)
+        if policy_file:
+            from llm_shelter.policy import PolicyError, load_pipeline
+
+            try:
+                pipeline = load_pipeline(policy_file)
+            except PolicyError as exc:
+                click.echo(f"Error: {exc}", err=True)
+                sys.exit(1)
+        else:
+            pipeline = _build_pipeline(
+                pii, injection, toxicity, secrets, max_chars, redact, patterns
+            )
         if audit_log:
             from llm_shelter.auditlog import AuditLogger
 
@@ -122,7 +141,7 @@ def _make_cli() -> "click.Group":
                 click.secho("BLOCKED", fg="red", bold=True)
                 sys.exit(2)
 
-            if redact and result.text != result.original_text:
+            if (redact or policy_file) and result.text != result.original_text:
                 click.secho("\nRedacted output:", fg="yellow")
                 click.echo(result.text)
         else:
@@ -159,6 +178,34 @@ def _make_cli() -> "click.Group":
         if max_chars:
             pipeline.add(LengthValidator(max_chars=max_chars), Action.BLOCK)
         return pipeline
+
+    @cli.command("policy")
+    @click.argument("policy_file", type=click.Path(exists=True))
+    @click.option("--json-output", is_flag=True, default=False, help="Output the summary as JSON")
+    def policy_cmd(policy_file: str, json_output: bool) -> None:
+        """Validate a policy file and show the pipeline it builds.
+
+        Exits 0 when the policy is valid and 1 when it is not, so it
+        can gate CI on reviewed policy files.
+        """
+        import json as _json
+
+        from llm_shelter.policy import PolicyError, describe_pipeline, load_pipeline
+
+        try:
+            pipeline = load_pipeline(policy_file)
+        except PolicyError as exc:
+            click.echo(f"Error: {exc}", err=True)
+            sys.exit(1)
+
+        rows = describe_pipeline(pipeline)
+        if json_output:
+            click.echo(_json.dumps({"policy": policy_file, "validators": rows}, indent=2))
+        else:
+            click.secho(f"Policy OK: {policy_file}", fg="green", bold=True)
+            click.echo(f"Validators ({len(rows)}):")
+            for row in rows:
+                click.echo(f"  {row['validator']:<12} {row['action']}")
 
     @cli.command()
     @click.argument("files", nargs=-1, required=True, type=click.Path(exists=True))

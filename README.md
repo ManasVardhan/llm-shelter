@@ -35,6 +35,7 @@ User Input                                                          Output
 | 📋 | **Schema Validation** | Validate LLM output against JSON schemas |
 | ✅ | **OWASP LLM Top 10 Audit** | Pass/fail checklist of your pipeline against OWASP risks |
 | 📊 | **Audit Log Sink** | JSONL compliance trail of every pipeline decision |
+| 🧰 | **Policy Files** | Declare your whole pipeline in one reviewed YAML/JSON file |
 | 🔌 | **FastAPI Middleware** | Drop-in ASGI middleware for API protection |
 | 🧪 | **Flask Middleware** | Drop-in WSGI middleware for Flask and friends |
 | 🎯 | **Decorators** | `@guard_input` and `@guard_output` for any function |
@@ -367,9 +368,60 @@ llm-shelter scan --audit-log audit.jsonl "My email is test@example.com"
 llm-shelter audit-log audit.jsonl              # summary
 llm-shelter audit-log audit.jsonl --tail 10    # last 10 decisions
 llm-shelter audit-log audit.jsonl --json-output
+
+# Build the pipeline from a reviewed policy file instead of flags
+llm-shelter scan --policy guardrails.yaml "My email is test@example.com"
+llm-shelter policy guardrails.yaml             # validate + show pipeline
+llm-shelter policy guardrails.yaml --json-output
 ```
 
 Requires the `cli` extra: `pip install llm-shelter[cli]`
+
+---
+
+## 🧰 Policy Files
+
+Declare your whole guardrail pipeline in one YAML or JSON file: which validators run, in what order, with which actions and settings. Teams review a single policy file and share it across every service instead of duplicating pipeline setup code.
+
+```yaml
+# guardrails.yaml
+version: 1
+audit_log: guardrails-audit.jsonl   # optional JSONL compliance trail
+
+validators:
+  - type: pii
+    action: redact
+  - type: secrets
+    action: redact
+  - type: injection
+    action: block
+    threshold: 0.5
+  - type: length
+    action: block
+    max_chars: 8000
+  - type: regex
+    action: redact
+    patterns:
+      - name: employee_id
+        regex: "EMP-\\d{5}"
+        placeholder: "[EMPLOYEE_ID]"
+```
+
+Load it from Python or the CLI:
+
+```python
+from llm_shelter import GuardrailPipeline
+
+pipeline = GuardrailPipeline.from_policy("guardrails.yaml")
+result = pipeline.run(user_input)
+```
+
+```bash
+llm-shelter policy guardrails.yaml                  # validate, exit 1 if invalid (CI gate)
+llm-shelter scan --policy guardrails.yaml "text"    # scan using the policy
+```
+
+Supported validator types: `pii`, `injection`, `toxicity`, `secrets`, `length`, `regex`, `ratelimit`, `schema`. Unknown types, keys, or actions fail fast with a precise error, so a typo in review never silently weakens production guardrails. JSON policies work with zero extra dependencies; YAML needs `pip install llm-shelter[policy]`. A complete example lives at [examples/guardrails.yaml](examples/guardrails.yaml).
 
 ---
 
