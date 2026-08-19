@@ -423,6 +423,28 @@ llm-shelter scan --policy guardrails.yaml "text"    # scan using the policy
 
 Supported validator types: `pii`, `injection`, `toxicity`, `secrets`, `length`, `regex`, `ratelimit`, `schema`. Unknown types, keys, or actions fail fast with a precise error, so a typo in review never silently weakens production guardrails. JSON policies work with zero extra dependencies; YAML needs `pip install llm-shelter[policy]`. A complete example lives at [examples/guardrails.yaml](examples/guardrails.yaml).
 
+### 🌐 Remote Policies with Checksum Pinning
+
+Policies can also load straight from an HTTPS URL, so a fleet of services pulls one centrally reviewed guardrail policy at startup instead of copying files around:
+
+```python
+pipeline = GuardrailPipeline.from_policy(
+    "https://policies.example.com/guardrails.yaml",
+    checksum="sha256:1f4e...",   # optional, pins the reviewed content
+)
+```
+
+```bash
+# Validate a remote policy and print its SHA-256 for pinning
+llm-shelter policy https://policies.example.com/guardrails.yaml
+
+# Scan with a pinned remote policy
+llm-shelter scan --policy https://policies.example.com/guardrails.yaml \
+    --policy-checksum 1f4e... "text"
+```
+
+The checksum is a SHA-256 hex digest of the raw policy bytes (the `sha256:` prefix is optional). If the served content ever differs from what was reviewed, loading fails with a checksum mismatch instead of silently running weaker guardrails. Plain `http://` is only allowed for localhost, responses are capped at 1 MB, and the `policy` command prints the digest of whatever it validated so pinning is one copy-paste away. Local files accept the same `checksum` argument for tamper detection.
+
 ---
 
 ## 📊 Audit Log Sink

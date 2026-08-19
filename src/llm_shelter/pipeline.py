@@ -125,28 +125,36 @@ class GuardrailPipeline:
         self.audit = audit
 
     @classmethod
-    def from_policy(cls, path: str) -> "GuardrailPipeline":
-        """Build a pipeline from a YAML or JSON policy file.
+    def from_policy(cls, source: str, checksum: str | None = None) -> "GuardrailPipeline":
+        """Build a pipeline from a YAML or JSON policy file or URL.
 
         Example::
 
             pipeline = GuardrailPipeline.from_policy("guardrails.yaml")
+            pipeline = GuardrailPipeline.from_policy(
+                "https://policies.example.com/guardrails.yaml",
+                checksum="sha256:1f4e...",
+            )
             result = pipeline.run(user_input)
 
         Args:
-            path: Path to the policy file. See :mod:`llm_shelter.policy`
-                for the policy format.
+            source: Path to the policy file, or an ``https://`` URL
+                serving one. See :mod:`llm_shelter.policy` for the
+                policy format.
+            checksum: Optional SHA-256 hex digest pinning the exact
+                policy content.
 
         Returns:
             A configured :class:`GuardrailPipeline`.
 
         Raises:
-            llm_shelter.policy.PolicyError: If the file cannot be read
-                or the policy is invalid.
+            llm_shelter.policy.PolicyError: If the source cannot be
+                read, fails the checksum check, or the policy is
+                invalid.
         """
         from llm_shelter.policy import load_pipeline
 
-        return load_pipeline(path)
+        return load_pipeline(source, checksum=checksum)
 
     @property
     def validators(self) -> list[tuple[Validator, Action]]:

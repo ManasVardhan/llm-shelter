@@ -77,9 +77,15 @@ def _make_cli() -> "click.Group":
     @click.option(
         "--policy",
         "policy_file",
-        type=click.Path(exists=True),
         default=None,
-        help="Build the pipeline from a YAML/JSON policy file (overrides validator flags)",
+        help="Build the pipeline from a YAML/JSON policy file or https:// URL "
+        "(overrides validator flags)",
+    )
+    @click.option(
+        "--policy-checksum",
+        "policy_checksum",
+        default=None,
+        help="SHA-256 hex digest pinning the policy content (use with --policy)",
     )
     def scan(
         text: str | None,
@@ -93,6 +99,7 @@ def _make_cli() -> "click.Group":
         patterns: tuple[str, ...],
         audit_log: str | None,
         policy_file: str | None,
+        policy_checksum: str | None,
     ) -> None:
         """Scan text for safety issues."""
         if input_file:
@@ -109,7 +116,7 @@ def _make_cli() -> "click.Group":
             from llm_shelter.policy import PolicyError, load_pipeline
 
             try:
-                pipeline = load_pipeline(policy_file)
+                pipeline = load_pipeline(policy_file, checksum=policy_checksum)
             except PolicyError as exc:
                 click.echo(f"Error: {exc}", err=True)
                 sys.exit(1)
@@ -180,29 +187,51 @@ def _make_cli() -> "click.Group":
         return pipeline
 
     @cli.command("policy")
-    @click.argument("policy_file", type=click.Path(exists=True))
+    @click.argument("policy_file")
     @click.option("--json-output", is_flag=True, default=False, help="Output the summary as JSON")
-    def policy_cmd(policy_file: str, json_output: bool) -> None:
-        """Validate a policy file and show the pipeline it builds.
+    @click.option(
+        "--checksum",
+        "checksum",
+        default=None,
+        help="SHA-256 hex digest pinning the policy content",
+    )
+    def policy_cmd(policy_file: str, json_output: bool, checksum: str | None) -> None:
+        """Validate a policy file or URL and show the pipeline it builds.
 
         Exits 0 when the policy is valid and 1 when it is not, so it
-        can gate CI on reviewed policy files.
+        can gate CI on reviewed policy files. Also prints the SHA-256
+        checksum of the policy content so it can be pinned with
+        --policy-checksum in later scans.
         """
         import json as _json
 
-        from llm_shelter.policy import PolicyError, describe_pipeline, load_pipeline
+        from llm_shelter.policy import (
+            PolicyError,
+            build_pipeline,
+            describe_pipeline,
+            parse_policy_bytes,
+            policy_checksum,
+            read_policy_bytes,
+        )
 
         try:
-            pipeline = load_pipeline(policy_file)
+            raw = read_policy_bytes(policy_file, checksum=checksum)
+            digest = policy_checksum(raw)
+            pipeline = build_pipeline(parse_policy_bytes(raw, policy_file))
         except PolicyError as exc:
             click.echo(f"Error: {exc}", err=True)
             sys.exit(1)
 
         rows = describe_pipeline(pipeline)
         if json_output:
-            click.echo(_json.dumps({"policy": policy_file, "validators": rows}, indent=2))
+            click.echo(
+                _json.dumps(
+                    {"policy": policy_file, "sha256": digest, "validators": rows}, indent=2
+                )
+            )
         else:
             click.secho(f"Policy OK: {policy_file}", fg="green", bold=True)
+            click.echo(f"SHA-256: {digest}")
             click.echo(f"Validators ({len(rows)}):")
             for row in rows:
                 click.echo(f"  {row['validator']:<12} {row['action']}")

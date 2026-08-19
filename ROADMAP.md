@@ -20,10 +20,13 @@ Drop-in middleware for both major Python web stacks: `ShelterMiddleware` (ASGI, 
 ### 🧰 Policy Files
 Declarative YAML/JSON policy files that define the full pipeline (validators, actions, thresholds, custom regex patterns, optional audit log), loaded with `GuardrailPipeline.from_policy()`, `load_pipeline()`, or `--policy` on the scan command. A `policy` CLI command validates a file and prints the resolved pipeline (text or JSON) with exit code 1 on invalid policies for CI gating. Strict validation rejects unknown types, keys, and actions with precise error locations.
 
+### 🌐 Policy Registry
+Policies load from HTTPS URLs with SHA-256 checksum pinning, so fleets of services pull one centrally reviewed guardrail policy at startup. `from_policy()`/`load_pipeline()` accept a URL plus optional `checksum`, the scan command gains `--policy-checksum`, and the `policy` command validates URLs and prints the content digest for pinning. Plain http is restricted to localhost and responses are capped at 1 MB.
+
 ## v0.2 (Planned)
 
-### 🌐 Policy Registry
-Fetch policy files from HTTPS URLs with checksum pinning, so fleets of services can pull one centrally reviewed guardrail policy at startup.
+### 🧪 Validator Plugins
+Entry-point based third-party validators, so custom checks can be packaged and referenced by type name in policy files.
 
 ---
 

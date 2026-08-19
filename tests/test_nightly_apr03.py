@@ -343,7 +343,8 @@ class TestMainModule:
             timeout=10,
         )
         assert result.returncode == 0
-        assert "0.1.1" in result.stdout
+        from llm_shelter import __version__
+        assert __version__ in result.stdout
 
     def test_main_module_scan(self) -> None:
         result = subprocess.run(

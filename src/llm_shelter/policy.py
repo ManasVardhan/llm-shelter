@@ -34,9 +34,13 @@ CLI ``--policy`` flag. JSON policies always work; YAML policies need
 
 from __future__ import annotations
 
+import hashlib
 import json
+import urllib.error
+import urllib.request
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlparse
 
 from llm_shelter.pipeline import Action, GuardrailPipeline
 from llm_shelter.validators.injection import InjectionValidator
@@ -82,67 +86,196 @@ _DEFAULT_ACTIONS: dict[str, Action] = {
 }
 
 
+MAX_REMOTE_POLICY_BYTES = 1_000_000
+_LOCAL_HOSTS = ("localhost", "127.0.0.1", "::1")
+
+
 class PolicyError(ValueError):
     """Raised when a policy file cannot be parsed or is invalid."""
 
 
-def load_policy_data(path: str | Path) -> dict[str, Any]:
-    """Read and parse a policy file into a plain dict.
+def is_policy_url(source: str | Path) -> bool:
+    """Return True when *source* looks like an HTTP(S) policy URL."""
+    return isinstance(source, str) and source.lower().startswith(("https://", "http://"))
 
-    ``.json`` files are parsed with the standard library. ``.yaml`` and
-    ``.yml`` files require ``pyyaml``. Any other extension is tried as
-    JSON first, then YAML when available.
+
+def policy_checksum(raw: bytes) -> str:
+    """Return the SHA-256 hex digest of raw policy bytes."""
+    return hashlib.sha256(raw).hexdigest()
+
+
+def _verify_checksum(raw: bytes, checksum: str, source: str) -> None:
+    expected = checksum.lower().removeprefix("sha256:").strip()
+    actual = policy_checksum(raw)
+    if actual != expected:
+        raise PolicyError(
+            f"Policy checksum mismatch for {source}: "
+            f"expected sha256:{expected[:16]}..., got sha256:{actual[:16]}.... "
+            "The policy content changed since it was pinned."
+        )
+
+
+def fetch_policy_bytes(
+    url: str,
+    checksum: str | None = None,
+    timeout: float = 10.0,
+    max_bytes: int = MAX_REMOTE_POLICY_BYTES,
+) -> bytes:
+    """Fetch a policy file from an HTTPS URL.
+
+    Plain ``http://`` is only allowed for localhost, so development and
+    tests can use a local server while production policies always travel
+    over TLS. Pass *checksum* (a SHA-256 hex digest, with or without a
+    ``sha256:`` prefix) to pin the exact reviewed policy content.
 
     Args:
-        path: Path to the policy file.
+        url: The policy URL.
+        checksum: Optional SHA-256 hex digest to verify the payload.
+        timeout: Socket timeout in seconds.
+        max_bytes: Reject responses larger than this many bytes.
+
+    Returns:
+        The raw policy bytes.
+
+    Raises:
+        PolicyError: On invalid scheme, network failure, oversized
+            response, or checksum mismatch.
+    """
+    parsed = urlparse(url)
+    if parsed.scheme == "http":
+        host = parsed.hostname or ""
+        if host not in _LOCAL_HOSTS:
+            raise PolicyError(
+                f"Refusing to fetch policy over plain http from {host!r}. "
+                "Use https:// (http is only allowed for localhost)."
+            )
+    elif parsed.scheme != "https":
+        raise PolicyError(f"Unsupported policy URL scheme: {parsed.scheme!r} (use https)")
+
+    try:
+        with urllib.request.urlopen(url, timeout=timeout) as resp:  # noqa: S310
+            raw: bytes = resp.read(max_bytes + 1)
+    except (urllib.error.URLError, OSError) as exc:
+        raise PolicyError(f"Failed to fetch policy from {url}: {exc}") from exc
+
+    if len(raw) > max_bytes:
+        raise PolicyError(
+            f"Policy at {url} exceeds the {max_bytes} byte limit; refusing to load it"
+        )
+    if checksum is not None:
+        _verify_checksum(raw, checksum, url)
+    return raw
+
+
+def read_policy_bytes(source: str | Path, checksum: str | None = None) -> bytes:
+    """Read raw policy bytes from a local file or an HTTP(S) URL.
+
+    Args:
+        source: Path to a policy file, or an ``https://`` URL.
+        checksum: Optional SHA-256 hex digest to verify the content.
+
+    Raises:
+        PolicyError: If the source is missing, unreachable, or fails the
+            checksum check.
+    """
+    if is_policy_url(source):
+        return fetch_policy_bytes(str(source), checksum=checksum)
+    p = Path(source)
+    if not p.is_file():
+        raise PolicyError(f"Policy file not found: {p}")
+    raw = p.read_bytes()
+    if checksum is not None:
+        _verify_checksum(raw, checksum, str(p))
+    return raw
+
+
+def load_policy_data(source: str | Path, checksum: str | None = None) -> dict[str, Any]:
+    """Read and parse a policy file or URL into a plain dict.
+
+    ``.json`` sources are parsed with the standard library. ``.yaml``
+    and ``.yml`` sources require ``pyyaml``. Any other extension is
+    tried as JSON first, then YAML when available.
+
+    Args:
+        source: Path to the policy file, or an ``https://`` URL.
+        checksum: Optional SHA-256 hex digest pinning the content.
 
     Returns:
         The parsed policy mapping.
 
     Raises:
-        PolicyError: If the file is missing, unparseable, or a YAML file
-            is given without ``pyyaml`` installed.
+        PolicyError: If the source is missing, unparseable, fails the
+            checksum check, or a YAML source is given without ``pyyaml``
+            installed.
     """
-    p = Path(path)
-    if not p.is_file():
-        raise PolicyError(f"Policy file not found: {p}")
-    raw = p.read_text(encoding="utf-8")
-    suffix = p.suffix.lower()
+    raw_bytes = read_policy_bytes(source, checksum=checksum)
+    return parse_policy_bytes(raw_bytes, source)
+
+
+def parse_policy_bytes(raw_bytes: bytes, source: str | Path) -> dict[str, Any]:
+    """Parse already fetched policy bytes into a plain dict.
+
+    Useful when the bytes were fetched once (for example to compute a
+    checksum) and should not be fetched again.
+
+    Args:
+        raw_bytes: Raw policy content.
+        source: The path or URL the bytes came from, used to pick the
+            parser from the extension and for error messages.
+
+    Returns:
+        The parsed policy mapping.
+
+    Raises:
+        PolicyError: If the content is not UTF-8, unparseable, or the
+            root is not a mapping.
+    """
+    try:
+        raw = raw_bytes.decode("utf-8")
+    except UnicodeDecodeError as exc:
+        raise PolicyError(f"Policy at {source} is not valid UTF-8: {exc}") from exc
+
+    if is_policy_url(source):
+        suffix = Path(urlparse(str(source)).path).suffix.lower()
+    else:
+        suffix = Path(source).suffix.lower()
 
     if suffix == ".json":
-        data = _parse_json(raw, p)
+        data = _parse_json(raw, source)
     elif suffix in (".yaml", ".yml"):
-        data = _parse_yaml(raw, p)
+        data = _parse_yaml(raw, source)
     else:
         try:
-            data = _parse_json(raw, p)
+            data = _parse_json(raw, source)
         except PolicyError:
-            data = _parse_yaml(raw, p)
+            data = _parse_yaml(raw, source)
 
     if not isinstance(data, dict):
-        raise PolicyError(f"Policy root must be a mapping, got {type(data).__name__} in {p}")
+        raise PolicyError(
+            f"Policy root must be a mapping, got {type(data).__name__} in {source}"
+        )
     return data
 
 
-def _parse_json(raw: str, p: Path) -> Any:
+def _parse_json(raw: str, source: str | Path) -> Any:
     try:
         return json.loads(raw)
     except json.JSONDecodeError as exc:
-        raise PolicyError(f"Invalid JSON in policy file {p}: {exc}") from exc
+        raise PolicyError(f"Invalid JSON in policy file {source}: {exc}") from exc
 
 
-def _parse_yaml(raw: str, p: Path) -> Any:
+def _parse_yaml(raw: str, source: str | Path) -> Any:
     try:
         import yaml
     except ImportError as exc:
         raise PolicyError(
-            f"YAML policy file {p} requires pyyaml. "
+            f"YAML policy file {source} requires pyyaml. "
             "Install it with: pip install llm-shelter[policy]"
         ) from exc
     try:
         return yaml.safe_load(raw)
     except yaml.YAMLError as exc:
-        raise PolicyError(f"Invalid YAML in policy file {p}: {exc}") from exc
+        raise PolicyError(f"Invalid YAML in policy file {source}: {exc}") from exc
 
 
 def build_pipeline(policy: dict[str, Any]) -> GuardrailPipeline:
@@ -283,19 +416,23 @@ def _construct(vtype: str, entry: dict[str, Any], where: str) -> Any:
     raise PolicyError(f"{where}: unknown validator type {vtype!r}")  # pragma: no cover
 
 
-def load_pipeline(path: str | Path) -> GuardrailPipeline:
-    """Load a policy file and build its pipeline in one step.
+def load_pipeline(source: str | Path, checksum: str | None = None) -> GuardrailPipeline:
+    """Load a policy file or URL and build its pipeline in one step.
 
     Args:
-        path: Path to a YAML or JSON policy file.
+        source: Path to a YAML or JSON policy file, or an ``https://``
+            URL serving one.
+        checksum: Optional SHA-256 hex digest pinning the exact policy
+            content (with or without a ``sha256:`` prefix).
 
     Returns:
         The configured :class:`GuardrailPipeline`.
 
     Raises:
-        PolicyError: If the file cannot be read or the policy is invalid.
+        PolicyError: If the source cannot be read, fails the checksum
+            check, or the policy is invalid.
     """
-    return build_pipeline(load_policy_data(path))
+    return build_pipeline(load_policy_data(source, checksum=checksum))
 
 
 def describe_pipeline(pipeline: GuardrailPipeline) -> list[dict[str, Any]]:

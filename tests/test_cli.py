@@ -200,7 +200,8 @@ class TestCLIVersion:
         result = runner.invoke(_cli(), ["--version"])
         assert result.exit_code == 0
         assert "llm-shelter" in result.output
-        assert "0.1.1" in result.output
+        from llm_shelter import __version__
+        assert __version__ in result.output
 
     def test_help(self) -> None:
         runner = CliRunner()
@@ -217,7 +218,7 @@ class TestCLIVersion:
 
     def test_version_matches_package(self) -> None:
         import llm_shelter
-        assert llm_shelter.__version__ == "0.1.1"
+        assert llm_shelter.__version__ == "0.2.0"
 
 
 # ---------------------------------------------------------------------------
@@ -304,7 +305,8 @@ class TestSubprocess:
             capture_output=True, text=True, timeout=10,
         )
         assert result.returncode == 0
-        assert "0.1.1" in result.stdout
+        from llm_shelter import __version__
+        assert __version__ in result.stdout
 
     def test_subprocess_scan_clean(self) -> None:
         result = subprocess.run(
