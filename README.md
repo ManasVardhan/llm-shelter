@@ -36,6 +36,7 @@ User Input                                                          Output
 | ✅ | **OWASP LLM Top 10 Audit** | Pass/fail checklist of your pipeline against OWASP risks |
 | 📊 | **Audit Log Sink** | JSONL compliance trail of every pipeline decision |
 | 🧰 | **Policy Files** | Declare your whole pipeline in one reviewed YAML/JSON file |
+| 🧩 | **Validator Plugins** | Ship custom validators as packages, use them by name in policies |
 | 🔌 | **FastAPI Middleware** | Drop-in ASGI middleware for API protection |
 | 🧪 | **Flask Middleware** | Drop-in WSGI middleware for Flask and friends |
 | 🎯 | **Decorators** | `@guard_input` and `@guard_output` for any function |
@@ -444,6 +445,40 @@ llm-shelter scan --policy https://policies.example.com/guardrails.yaml \
 ```
 
 The checksum is a SHA-256 hex digest of the raw policy bytes (the `sha256:` prefix is optional). If the served content ever differs from what was reviewed, loading fails with a checksum mismatch instead of silently running weaker guardrails. Plain `http://` is only allowed for localhost, responses are capped at 1 MB, and the `policy` command prints the digest of whatever it validated so pinning is one copy-paste away. Local files accept the same `checksum` argument for tamper detection.
+
+---
+
+## 🧩 Validator Plugins
+
+Package your own validators and use them by type name in policy files, exactly like the built-ins. A plugin package declares an entry point in the `llm_shelter.validators` group:
+
+```toml
+# pyproject.toml of your plugin package
+[project.entry-points."llm_shelter.validators"]
+profanity = "my_pkg.validators:ProfanityValidator"
+```
+
+The entry point resolves to a factory (usually the validator class) that is called with the policy entry's settings as keyword arguments and returns any object with a `name` attribute and a `validate(text)` method:
+
+```yaml
+validators:
+  - type: pii
+    action: redact
+  - type: profanity        # provided by the installed plugin package
+    action: block
+    strictness: 0.8
+```
+
+Factories can set `default_action = Action.WARN` (or `"warn"`) to pick the action used when a policy entry omits `action`. Application-local validators can skip packaging entirely and register in process:
+
+```python
+from llm_shelter import register_validator, GuardrailPipeline
+
+register_validator("profanity", ProfanityValidator)
+pipeline = GuardrailPipeline.from_policy("guardrails.yaml")
+```
+
+`llm-shelter plugins` lists every installed plugin with its source and default action (`--json-output` for scripting), reports entry points that fail to load, and exits 1 on load errors so CI notices broken plugin installs. Plugin names can never shadow built-in types, and a validator returned without the required protocol is rejected with a precise error.
 
 ---
 

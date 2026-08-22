@@ -23,10 +23,13 @@ Declarative YAML/JSON policy files that define the full pipeline (validators, ac
 ### 🌐 Policy Registry
 Policies load from HTTPS URLs with SHA-256 checksum pinning, so fleets of services pull one centrally reviewed guardrail policy at startup. `from_policy()`/`load_pipeline()` accept a URL plus optional `checksum`, the scan command gains `--policy-checksum`, and the `policy` command validates URLs and prints the content digest for pinning. Plain http is restricted to localhost and responses are capped at 1 MB.
 
-## v0.2 (Planned)
+### 🧩 Validator Plugins
+Entry-point based third-party validators: packages declare validators in the `llm_shelter.validators` entry point group and policies reference them by type name next to the built-ins, with settings passed to the factory as keyword arguments and `default_action` support. `register_validator()` covers in-process registration for application-local checks, plugins can never shadow built-in types, invalid factories are rejected with precise errors, and the `llm-shelter plugins` CLI lists installed plugins (`--json-output`) and exits 1 when any entry point fails to load.
 
-### 🧪 Validator Plugins
-Entry-point based third-party validators, so custom checks can be packaged and referenced by type name in policy files.
+## v0.4 (Planned)
+
+### 🚦 Streaming Guardrails
+Incremental validation for streamed LLM output: scan chunks as they arrive, cut the stream the moment a validator blocks, and redact across chunk boundaries, so guardrails work with token streaming instead of waiting for the full response.
 
 ---
 

@@ -236,6 +236,60 @@ def _make_cli() -> "click.Group":
             for row in rows:
                 click.echo(f"  {row['validator']:<12} {row['action']}")
 
+    @cli.command("plugins")
+    @click.option("--json-output", is_flag=True, default=False, help="Output the list as JSON")
+    def plugins_cmd(json_output: bool) -> None:
+        """List validator plugins installed via entry points.
+
+        Third-party packages register validators in the
+        llm_shelter.validators entry point group; those types become
+        usable in policy files. Exits 1 when any plugin failed to load.
+        """
+        import json as _json
+
+        from llm_shelter.plugins import discover_plugins, plugin_load_errors
+        from llm_shelter.policy import SUPPORTED_TYPES
+
+        plugins = discover_plugins(refresh=True)
+        errors = plugin_load_errors()
+
+        if json_output:
+            click.echo(
+                _json.dumps(
+                    {
+                        "builtin": list(SUPPORTED_TYPES),
+                        "plugins": [
+                            {
+                                "name": info.name,
+                                "source": info.source,
+                                "default_action": info.default_action.value,
+                            }
+                            for info in sorted(plugins.values(), key=lambda i: i.name)
+                        ],
+                        "errors": errors,
+                    },
+                    indent=2,
+                )
+            )
+        else:
+            click.echo(f"Built-in validator types: {', '.join(SUPPORTED_TYPES)}")
+            if plugins:
+                click.echo(f"Plugin validators ({len(plugins)}):")
+                for info in sorted(plugins.values(), key=lambda i: i.name):
+                    click.echo(
+                        f"  {info.name:<16} default action: {info.default_action.value:<7} "
+                        f"source: {info.source}"
+                    )
+            else:
+                click.echo(
+                    "No plugin validators installed. Packages can provide them via "
+                    "the llm_shelter.validators entry point group."
+                )
+            for name, message in sorted(errors.items()):
+                click.secho(f"  {name}: {message}", fg="red", err=True)
+        if errors:
+            sys.exit(1)
+
     @cli.command()
     @click.argument("files", nargs=-1, required=True, type=click.Path(exists=True))
     @click.option("--pii/--no-pii", default=True, help="Enable PII detection")

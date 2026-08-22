@@ -18,11 +18,19 @@ Quick start::
 
 from __future__ import annotations
 
-__version__ = "0.1.1"
+__version__ = "0.3.0"
 
 from llm_shelter.pipeline import GuardrailPipeline, ValidationResult
 from llm_shelter.auditlog import AuditLogger, AuditRecord, iter_records, summarize
 from llm_shelter.policy import PolicyError, load_pipeline, load_policy_data
+from llm_shelter.plugins import (
+    PluginError,
+    PluginInfo,
+    create_validator,
+    discover_plugins,
+    register_validator,
+    unregister_validator,
+)
 from llm_shelter.owasp import CheckStatus, OwaspAudit, OwaspCheck, audit_pipeline
 from llm_shelter.validators.pii import PIIValidator
 from llm_shelter.validators.injection import InjectionValidator
@@ -44,6 +52,12 @@ __all__ = [
     "PolicyError",
     "load_pipeline",
     "load_policy_data",
+    "PluginError",
+    "PluginInfo",
+    "create_validator",
+    "discover_plugins",
+    "register_validator",
+    "unregister_validator",
     "PIIValidator",
     "InjectionValidator",
     "ToxicityValidator",

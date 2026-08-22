@@ -327,11 +327,13 @@ def _build_validator(entry: Any, index: int) -> tuple[Any, Action]:
         raise PolicyError(f"{where}: each validator entry must be a mapping")
 
     vtype = entry.get("type")
-    if not isinstance(vtype, str) or vtype not in SUPPORTED_TYPES:
+    if not isinstance(vtype, str) or not vtype:
         raise PolicyError(
             f"{where}: unknown validator type {vtype!r}. "
             f"Supported types: {', '.join(SUPPORTED_TYPES)}"
         )
+    if vtype not in SUPPORTED_TYPES:
+        return _build_plugin_validator(vtype, entry, where)
 
     unknown = set(entry) - _ALLOWED_KEYS[vtype] - {"type", "action"}
     if unknown:
@@ -356,6 +358,38 @@ def _build_validator(entry: Any, index: int) -> tuple[Any, Action]:
     except PolicyError:
         raise
     except (TypeError, ValueError) as exc:
+        raise PolicyError(f"{where} ({vtype}): {exc}") from exc
+    return validator, action
+
+
+def _build_plugin_validator(vtype: str, entry: dict[str, Any], where: str) -> tuple[Any, Action]:
+    """Build a (validator, action) pair from an entry-point plugin type."""
+    from llm_shelter.plugins import PluginError, discover_plugins, get_plugin
+
+    plugin = get_plugin(vtype)
+    if plugin is None:
+        installed = ", ".join(sorted(discover_plugins())) or "none"
+        raise PolicyError(
+            f"{where}: unknown validator type {vtype!r}. "
+            f"Supported types: {', '.join(SUPPORTED_TYPES)}. "
+            f"Installed plugins: {installed}"
+        )
+
+    action_raw = entry.get("action", plugin.default_action.value)
+    try:
+        action = Action(str(action_raw).lower())
+    except ValueError as exc:
+        raise PolicyError(
+            f"{where} ({vtype}): invalid action {action_raw!r}. "
+            "Allowed: block, warn, redact"
+        ) from exc
+    if action == Action.PASSTHROUGH:
+        raise PolicyError(f"{where} ({vtype}): action 'passthrough' is not allowed in policies")
+
+    settings = {k: v for k, v in entry.items() if k not in ("type", "action")}
+    try:
+        validator = plugin.create(settings)
+    except PluginError as exc:
         raise PolicyError(f"{where} ({vtype}): {exc}") from exc
     return validator, action
 
