@@ -26,10 +26,13 @@ Policies load from HTTPS URLs with SHA-256 checksum pinning, so fleets of servic
 ### 🧩 Validator Plugins
 Entry-point based third-party validators: packages declare validators in the `llm_shelter.validators` entry point group and policies reference them by type name next to the built-ins, with settings passed to the factory as keyword arguments and `default_action` support. `register_validator()` covers in-process registration for application-local checks, plugins can never shadow built-in types, invalid factories are rejected with precise errors, and the `llm-shelter plugins` CLI lists installed plugins (`--json-output`) and exits 1 when any entry point fails to load.
 
-## v0.4 (Planned)
-
 ### 🚦 Streaming Guardrails
-Incremental validation for streamed LLM output: scan chunks as they arrive, cut the stream the moment a validator blocks, and redact across chunk boundaries, so guardrails work with token streaming instead of waiting for the full response.
+`StreamGuard` wraps any pipeline for incremental validation of streamed LLM output: feed chunks as they arrive, safe (redacted) text is released as soon as it clears a configurable holdback window that catches findings spanning chunk boundaries, and `StreamBlocked` is raised the moment a validator blocks so the stream can be cut with nothing further released. `wrap()` adapts any chunk iterator, one aggregate audit record is written per stream when an audit logger is attached, and the `llm-shelter stream` CLI pipes stdin through the guardrails incrementally (exit 2 on block) with the same validator, pattern, and policy flags as `scan`.
+
+## v0.5 (Planned)
+
+### 🧵 Async Streaming Adapters
+`async` counterparts for streaming: an `awrap()` adapter for async chunk iterators and drop-in wrappers for OpenAI and Anthropic streaming responses, so async web apps guard token streams without threading glue.
 
 ---
 

@@ -186,6 +186,109 @@ def _make_cli() -> "click.Group":
             pipeline.add(LengthValidator(max_chars=max_chars), Action.BLOCK)
         return pipeline
 
+    @cli.command()
+    @click.option("--pii/--no-pii", default=True, help="Enable PII detection")
+    @click.option("--injection/--no-injection", default=True, help="Enable injection detection")
+    @click.option("--toxicity/--no-toxicity", default=True, help="Enable toxicity detection")
+    @click.option("--secrets/--no-secrets", default=True, help="Enable secret/credential detection")
+    @click.option(
+        "--pattern",
+        "-p",
+        "patterns",
+        multiple=True,
+        help="Custom regex rule as LABEL=REGEX (repeatable)",
+    )
+    @click.option(
+        "--policy",
+        "policy_file",
+        default=None,
+        help="Build the pipeline from a YAML/JSON policy file or https:// URL "
+        "(overrides validator flags)",
+    )
+    @click.option(
+        "--policy-checksum",
+        "policy_checksum",
+        default=None,
+        help="SHA-256 hex digest pinning the policy content (use with --policy)",
+    )
+    @click.option(
+        "--holdback",
+        type=int,
+        default=64,
+        show_default=True,
+        help="Trailing characters withheld until more text arrives, so "
+        "findings spanning chunk boundaries are caught before release",
+    )
+    @click.option(
+        "--chunk-size",
+        type=int,
+        default=256,
+        show_default=True,
+        help="Read stdin in chunks of this many characters",
+    )
+    def stream(
+        pii: bool,
+        injection: bool,
+        toxicity: bool,
+        secrets: bool,
+        patterns: tuple[str, ...],
+        policy_file: str | None,
+        policy_checksum: str | None,
+        holdback: int,
+        chunk_size: int,
+    ) -> None:
+        """Stream stdin through the guardrails, writing safe text to stdout.
+
+        Reads incrementally, redacts across chunk boundaries, and stops
+        the moment a validator blocks (exit code 2), so it can sit in a
+        pipe between a streaming LLM and its consumer:
+
+            my-llm-stream | llm-shelter stream --policy guardrails.yaml
+        """
+        from llm_shelter.streaming import StreamBlocked, StreamGuard
+
+        if policy_file:
+            from llm_shelter.policy import PolicyError, load_pipeline
+
+            try:
+                pipeline = load_pipeline(policy_file, checksum=policy_checksum)
+            except PolicyError as exc:
+                click.echo(f"Error: {exc}", err=True)
+                sys.exit(1)
+        else:
+            pipeline = _build_pipeline(
+                pii, injection, toxicity, secrets, None, True, patterns
+            )
+
+        guard = StreamGuard(pipeline, holdback=holdback)
+        try:
+            while True:
+                chunk = sys.stdin.read(chunk_size)
+                if not chunk:
+                    break
+                released = guard.feed(chunk)
+                if released:
+                    sys.stdout.write(released)
+                    sys.stdout.flush()
+            released = guard.finish()
+            if released:
+                sys.stdout.write(released)
+                sys.stdout.flush()
+        except StreamBlocked as exc:
+            click.secho("\nBLOCKED", fg="red", bold=True, err=True)
+            for finding in exc.findings:
+                click.echo(
+                    f"  [{finding.validator}/{finding.category}] {finding.description}",
+                    err=True,
+                )
+            sys.exit(2)
+
+        for finding in guard.findings:
+            click.echo(
+                f"[{finding.validator}/{finding.category}] {finding.description}",
+                err=True,
+            )
+
     @cli.command("policy")
     @click.argument("policy_file")
     @click.option("--json-output", is_flag=True, default=False, help="Output the summary as JSON")

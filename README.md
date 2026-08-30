@@ -40,6 +40,7 @@ User Input                                                          Output
 | 🔌 | **FastAPI Middleware** | Drop-in ASGI middleware for API protection |
 | 🧪 | **Flask Middleware** | Drop-in WSGI middleware for Flask and friends |
 | 🎯 | **Decorators** | `@guard_input` and `@guard_output` for any function |
+| 🚦 | **Streaming Guardrails** | Validate token streams incrementally, cut on block, redact across chunks |
 | ⚡ | **CLI** | Scan text from the command line |
 
 ---
@@ -266,6 +267,48 @@ output_pipeline = GuardrailPipeline().add(PIIValidator(redact=True), Action.REDA
 def call_llm(prompt: str) -> str:
     return my_llm_client.complete(prompt)
 ```
+
+---
+
+## 🚦 Streaming Guardrails
+
+Guardrails usually wait for the full response, but LLMs stream. `StreamGuard` validates chunks as they arrive: safe (redacted) text is released as soon as it clears a holdback window that catches findings spanning chunk boundaries, and the stream is cut the instant a validator blocks.
+
+```python
+from llm_shelter import GuardrailPipeline, PIIValidator, InjectionValidator
+from llm_shelter import StreamGuard, StreamBlocked
+from llm_shelter.pipeline import Action
+
+pipeline = (
+    GuardrailPipeline()
+    .add(PIIValidator(redact=True), Action.REDACT)
+    .add(InjectionValidator(), Action.BLOCK)
+)
+
+guard = StreamGuard(pipeline)  # holdback=64 chars by default
+try:
+    for safe_chunk in guard.wrap(llm_stream()):
+        print(safe_chunk, end="", flush=True)
+except StreamBlocked as exc:
+    print("\n[stream cut]", exc)
+```
+
+Or drive it manually with `feed()` / `finish()` (works in async code too):
+
+```python
+guard = StreamGuard(pipeline)
+async for chunk in response:
+    print(guard.feed(chunk.text), end="")
+print(guard.finish(), end="")
+```
+
+Nothing already released is ever retracted: text only leaves the holdback window after the full pipeline has cleared it, redactions apply across chunk boundaries, and a block releases nothing further. Increase `holdback` when scanning for long secrets. If the pipeline has an `AuditLogger`, one aggregate record is written per stream. The CLI can sit in a pipe between a streaming LLM and its consumer:
+
+```bash
+my-llm-stream | llm-shelter stream --policy guardrails.yaml
+```
+
+`llm-shelter stream` writes safe text to stdout as it is released and exits with code 2 the moment a validator blocks.
 
 ---
 

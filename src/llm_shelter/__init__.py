@@ -18,9 +18,10 @@ Quick start::
 
 from __future__ import annotations
 
-__version__ = "0.3.0"
+__version__ = "0.4.0"
 
 from llm_shelter.pipeline import GuardrailPipeline, ValidationResult
+from llm_shelter.streaming import StreamBlocked, StreamGuard
 from llm_shelter.auditlog import AuditLogger, AuditRecord, iter_records, summarize
 from llm_shelter.policy import PolicyError, load_pipeline, load_policy_data
 from llm_shelter.plugins import (
@@ -45,6 +46,8 @@ from llm_shelter.validators.regex import RegexPattern, RegexValidator
 __all__ = [
     "GuardrailPipeline",
     "ValidationResult",
+    "StreamBlocked",
+    "StreamGuard",
     "AuditLogger",
     "AuditRecord",
     "iter_records",
