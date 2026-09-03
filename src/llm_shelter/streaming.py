@@ -42,7 +42,8 @@ Note:
 from __future__ import annotations
 
 import time
-from typing import Any, Iterable, Iterator
+from collections.abc import AsyncIterable, AsyncIterator, Iterable, Iterator
+from typing import Any
 
 from llm_shelter.pipeline import (
     Action,
@@ -213,6 +214,29 @@ class StreamGuard:
         validator blocks.
         """
         for chunk in chunks:
+            released = self.feed(chunk)
+            if released:
+                yield released
+        released = self.finish()
+        if released:
+            yield released
+
+    async def awrap(self, chunks: AsyncIterable[str]) -> AsyncIterator[str]:
+        """Async counterpart of :meth:`wrap` for async chunk iterators.
+
+        Yields safe text for each incoming chunk, then the final flush,
+        skipping empty releases. Raises :class:`StreamBlocked`
+        mid-iteration when a validator blocks. Validation itself runs
+        synchronously between awaits; it is regex work on the unreleased
+        tail, which is fast enough not to starve the event loop.
+
+        Example::
+
+            guard = StreamGuard(pipeline)
+            async for safe in guard.awrap(llm_stream):
+                await response.write(safe)
+        """
+        async for chunk in chunks:
             released = self.feed(chunk)
             if released:
                 yield released

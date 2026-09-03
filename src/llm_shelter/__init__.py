@@ -18,10 +18,18 @@ Quick start::
 
 from __future__ import annotations
 
-__version__ = "0.4.0"
+__version__ = "0.5.0"
 
 from llm_shelter.pipeline import GuardrailPipeline, ValidationResult
 from llm_shelter.streaming import StreamBlocked, StreamGuard
+from llm_shelter.adapters import (
+    anthropic_event_text,
+    awrap_anthropic,
+    awrap_openai,
+    openai_chunk_text,
+    wrap_anthropic,
+    wrap_openai,
+)
 from llm_shelter.auditlog import AuditLogger, AuditRecord, iter_records, summarize
 from llm_shelter.policy import PolicyError, load_pipeline, load_policy_data
 from llm_shelter.plugins import (
@@ -48,6 +56,12 @@ __all__ = [
     "ValidationResult",
     "StreamBlocked",
     "StreamGuard",
+    "anthropic_event_text",
+    "awrap_anthropic",
+    "awrap_openai",
+    "openai_chunk_text",
+    "wrap_anthropic",
+    "wrap_openai",
     "AuditLogger",
     "AuditRecord",
     "iter_records",

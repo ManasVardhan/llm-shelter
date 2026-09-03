@@ -29,10 +29,13 @@ Entry-point based third-party validators: packages declare validators in the `ll
 ### 🚦 Streaming Guardrails
 `StreamGuard` wraps any pipeline for incremental validation of streamed LLM output: feed chunks as they arrive, safe (redacted) text is released as soon as it clears a configurable holdback window that catches findings spanning chunk boundaries, and `StreamBlocked` is raised the moment a validator blocks so the stream can be cut with nothing further released. `wrap()` adapts any chunk iterator, one aggregate audit record is written per stream when an audit logger is attached, and the `llm-shelter stream` CLI pipes stdin through the guardrails incrementally (exit 2 on block) with the same validator, pattern, and policy flags as `scan`.
 
-## v0.5 (Planned)
-
 ### 🧵 Async Streaming Adapters
-`async` counterparts for streaming: an `awrap()` adapter for async chunk iterators and drop-in wrappers for OpenAI and Anthropic streaming responses, so async web apps guard token streams without threading glue.
+Async counterparts for streaming: `StreamGuard.awrap()` guards any async chunk iterator, and `llm_shelter.adapters` ships drop-in wrappers for OpenAI and Anthropic streaming responses (`wrap_openai` / `awrap_openai`, `wrap_anthropic` / `awrap_anthropic`), so async web apps guard token streams without threading glue. Events are read structurally (no SDK imports, dict-shaped events work too), non-text events are skipped, bare pipelines are auto-wrapped in a guard, and `StreamBlocked` cuts the stream mid-iteration.
+
+## v0.6 (Planned)
+
+### 🧾 Guardrail Coverage Reports
+`llm-shelter coverage` replays a corpus of prompts/responses through a pipeline and reports which validators fired, per-category hit rates, and unguarded gaps versus the OWASP checklist, as JSON or markdown for CI artifacts.
 
 ---
 

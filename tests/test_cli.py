@@ -218,7 +218,7 @@ class TestCLIVersion:
 
     def test_version_matches_package(self) -> None:
         import llm_shelter
-        assert llm_shelter.__version__ == "0.4.0"
+        assert llm_shelter.__version__ == "0.5.0"
 
 
 # ---------------------------------------------------------------------------

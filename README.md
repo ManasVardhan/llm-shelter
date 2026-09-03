@@ -41,6 +41,7 @@ User Input                                                          Output
 | 🧪 | **Flask Middleware** | Drop-in WSGI middleware for Flask and friends |
 | 🎯 | **Decorators** | `@guard_input` and `@guard_output` for any function |
 | 🚦 | **Streaming Guardrails** | Validate token streams incrementally, cut on block, redact across chunks |
+| 🧵 | **Async and Provider Adapters** | `awrap()` for async iterators plus drop-in OpenAI and Anthropic stream wrappers |
 | ⚡ | **CLI** | Scan text from the command line |
 
 ---
@@ -309,6 +310,29 @@ my-llm-stream | llm-shelter stream --policy guardrails.yaml
 ```
 
 `llm-shelter stream` writes safe text to stdout as it is released and exits with code 2 the moment a validator blocks.
+
+### Async Streams and Provider Adapters
+
+Async apps use `guard.awrap()` on any async chunk iterator, and the `llm_shelter.adapters` module plugs directly into the official OpenAI and Anthropic SDK streams (sync and async), extracting text deltas for you:
+
+```python
+from llm_shelter import StreamGuard, awrap_openai, awrap_anthropic
+
+# Any async iterator of text chunks
+async for safe in StreamGuard(pipeline).awrap(llm_stream):
+    await response.write(safe)
+
+# OpenAI: stream=True chat completions, sync or async client
+stream = await client.chat.completions.create(model=model, messages=msgs, stream=True)
+async for safe in awrap_openai(StreamGuard(pipeline), stream):
+    yield safe
+
+# Anthropic: messages.create(stream=True) events
+async for safe in awrap_anthropic(pipeline, stream):  # bare pipeline works too
+    yield safe
+```
+
+The adapters never import either SDK: events are read structurally, so dict-shaped events from proxies or fixtures work as well. `wrap_openai` / `wrap_anthropic` cover synchronous streams, non-text events (role deltas, tool calls, `message_start`) are skipped, and `StreamBlocked` cuts the stream mid-iteration exactly like the sync path.
 
 ---
 
