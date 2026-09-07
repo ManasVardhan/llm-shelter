@@ -32,10 +32,13 @@ Entry-point based third-party validators: packages declare validators in the `ll
 ### 🧵 Async Streaming Adapters
 Async counterparts for streaming: `StreamGuard.awrap()` guards any async chunk iterator, and `llm_shelter.adapters` ships drop-in wrappers for OpenAI and Anthropic streaming responses (`wrap_openai` / `awrap_openai`, `wrap_anthropic` / `awrap_anthropic`), so async web apps guard token streams without threading glue. Events are read structurally (no SDK imports, dict-shaped events work too), non-text events are skipped, bare pipelines are auto-wrapped in a guard, and `StreamBlocked` cuts the stream mid-iteration.
 
-## v0.6 (Planned)
-
 ### 🧾 Guardrail Coverage Reports
-`llm-shelter coverage` replays a corpus of prompts/responses through a pipeline and reports which validators fired, per-category hit rates, and unguarded gaps versus the OWASP checklist, as JSON or markdown for CI artifacts.
+`llm-shelter coverage` replays a corpus of prompts/responses (plain text or JSONL) through a pipeline and reports which validators fired, per-category hit counts and hit rates, how samples were handled (blocked, redacted, warned, clean), validators that never fired on the corpus, and automated OWASP checklist gaps. Output as terminal text, JSON, or markdown (`-o` writes CI artifacts), `--fail-on-unused` gates CI on dead validators, `--policy` replays through the exact production pipeline, and `run_coverage()` / `load_corpus()` / `render_markdown()` expose the same engine in Python.
+
+## v0.7 (Planned)
+
+### 🗃️ Finding Suppressions
+A committable suppressions file that silences known-accepted findings by validator, category, and pattern, so audit logs and coverage reports track only new risk instead of re-flagging reviewed items.
 
 ---
 

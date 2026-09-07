@@ -114,7 +114,7 @@ class GuardrailPipeline:
         pipeline = GuardrailPipeline(audit=AuditLogger("audit.jsonl"))
     """
 
-    def __init__(self, audit: "AuditLogger | None" = None) -> None:
+    def __init__(self, audit: AuditLogger | None = None) -> None:
         """Create a pipeline, optionally attached to an audit log sink.
 
         Args:
@@ -125,7 +125,7 @@ class GuardrailPipeline:
         self.audit = audit
 
     @classmethod
-    def from_policy(cls, source: str, checksum: str | None = None) -> "GuardrailPipeline":
+    def from_policy(cls, source: str, checksum: str | None = None) -> GuardrailPipeline:
         """Build a pipeline from a YAML or JSON policy file or URL.
 
         Example::
@@ -165,7 +165,7 @@ class GuardrailPipeline:
         """
         return list(self._validators)
 
-    def add(self, validator: Validator, action: Action = Action.BLOCK) -> "GuardrailPipeline":
+    def add(self, validator: Validator, action: Action = Action.BLOCK) -> GuardrailPipeline:
         """Add a validator to the pipeline.
 
         Args:

@@ -9,7 +9,8 @@ or :func:`guard_output` to automatically run it through a
 from __future__ import annotations
 
 import functools
-from typing import Any, Callable, TypeVar
+from collections.abc import Callable
+from typing import Any, TypeVar
 
 from llm_shelter.pipeline import GuardrailPipeline, ValidationResult
 

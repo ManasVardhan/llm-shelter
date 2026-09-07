@@ -27,7 +27,7 @@ def _check_click() -> None:
         sys.exit(1)
 
 
-def _make_cli() -> "click.Group":
+def _make_cli() -> click.Group:
     """Build and return the click CLI group.
 
     Separated from :func:`main` so that tests can import and invoke the
@@ -623,6 +623,157 @@ def _make_cli() -> "click.Group":
             click.echo(f"Summary: {result.summary()}")
 
         if fail_on_gaps and result.has_gaps:
+            sys.exit(1)
+
+    @cli.command()
+    @click.argument("corpus", type=click.Path(exists=True, dir_okay=False))
+    @click.option("--pii/--no-pii", default=True, help="Enable PII detection")
+    @click.option("--injection/--no-injection", default=True, help="Enable injection detection")
+    @click.option("--toxicity/--no-toxicity", default=True, help="Enable toxicity detection")
+    @click.option("--secrets/--no-secrets", default=True, help="Enable secret/credential detection")
+    @click.option("--max-chars", type=int, default=None, help="Maximum character limit")
+    @click.option("--redact", is_flag=True, default=False, help="Redact instead of warn")
+    @click.option(
+        "--pattern",
+        "-p",
+        "patterns",
+        multiple=True,
+        help="Custom regex rule as LABEL=REGEX (repeatable)",
+    )
+    @click.option(
+        "--policy",
+        "policy_file",
+        default=None,
+        help="Build the pipeline from a YAML/JSON policy file or https:// URL "
+        "(overrides validator flags)",
+    )
+    @click.option(
+        "--policy-checksum",
+        "policy_checksum",
+        default=None,
+        help="SHA-256 hex digest pinning the policy content (use with --policy)",
+    )
+    @click.option("--json-output", is_flag=True, default=False, help="Output the report as JSON")
+    @click.option(
+        "--markdown", is_flag=True, default=False, help="Output the report as markdown"
+    )
+    @click.option(
+        "--output",
+        "-o",
+        "output_file",
+        type=click.Path(dir_okay=False),
+        default=None,
+        help="Write the report to a file instead of stdout",
+    )
+    @click.option(
+        "--fail-on-unused",
+        is_flag=True,
+        default=False,
+        help="Exit 1 if any configured validator never fired on the corpus (for CI)",
+    )
+    def coverage(
+        corpus: str,
+        pii: bool,
+        injection: bool,
+        toxicity: bool,
+        secrets: bool,
+        max_chars: int | None,
+        redact: bool,
+        patterns: tuple[str, ...],
+        policy_file: str | None,
+        policy_checksum: str | None,
+        json_output: bool,
+        markdown: bool,
+        output_file: str | None,
+        fail_on_unused: bool,
+    ) -> None:
+        """Replay a corpus through the guardrails and report coverage.
+
+        CORPUS is a plain text file with one sample per line, or a JSONL
+        file whose lines are JSON strings or objects with a "text" field.
+        The report shows which validators fired, per-category hit counts,
+        validators that never fired, and automated OWASP gaps:
+
+            llm-shelter coverage prompts.jsonl --policy guardrails.yaml
+        """
+        from llm_shelter.coverage import (
+            CoverageError,
+            load_corpus,
+            render_markdown,
+            run_coverage,
+        )
+
+        if json_output and markdown:
+            click.echo("Error: use only one of --json-output and --markdown", err=True)
+            sys.exit(1)
+
+        if policy_file:
+            from llm_shelter.policy import PolicyError, load_pipeline
+
+            try:
+                pipeline = load_pipeline(policy_file, checksum=policy_checksum)
+            except PolicyError as exc:
+                click.echo(f"Error: {exc}", err=True)
+                sys.exit(1)
+        else:
+            pipeline = _build_pipeline(
+                pii, injection, toxicity, secrets, max_chars, redact, patterns
+            )
+
+        try:
+            samples = load_corpus(corpus)
+        except CoverageError as exc:
+            click.echo(f"Error: {exc}", err=True)
+            sys.exit(1)
+
+        report = run_coverage(pipeline, samples)
+
+        rendered: str | None = None
+        if json_output:
+            rendered = json.dumps(report.to_dict(), indent=2)
+        elif markdown:
+            rendered = render_markdown(report)
+
+        if rendered is not None:
+            if output_file:
+                Path(output_file).write_text(
+                    rendered if rendered.endswith("\n") else rendered + "\n"
+                )
+                click.echo(f"Wrote report to {output_file}")
+            else:
+                click.echo(rendered)
+        else:
+            click.secho("Guardrail coverage report", bold=True)
+            click.echo(
+                f"Replayed {report.total_samples} sample(s): "
+                f"{report.blocked} blocked, {report.redacted} redacted, "
+                f"{report.warned} warned, {report.clean} clean."
+            )
+            click.echo()
+            for v in report.validators:
+                rate = v.hit_rate(report.total_samples) * 100
+                actions = ", ".join(v.actions) if v.actions else "-"
+                color = "green" if v.samples_hit else "yellow"
+                click.secho(
+                    f"  {v.name:<12} [{actions}] {v.samples_hit}/{report.total_samples} "
+                    f"samples ({rate:.1f}%), {v.findings} finding(s)",
+                    fg=color,
+                )
+                for category, count in sorted(v.categories.items()):
+                    click.echo(f"    {v.name}/{category}: {count}")
+            unused = report.unused_validators
+            if unused:
+                click.echo()
+                click.secho(
+                    f"Never fired on this corpus: {', '.join(unused)}", fg="yellow"
+                )
+            if report.owasp_gaps:
+                click.echo()
+                click.secho("OWASP gaps:", fg="red", bold=True)
+                for gap in report.owasp_gaps:
+                    click.echo(f"  {gap['id']} {gap['title']}: {gap['remediation']}")
+
+        if fail_on_unused and report.unused_validators:
             sys.exit(1)
 
     @cli.command("audit-log")

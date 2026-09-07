@@ -93,17 +93,20 @@ class SchemaValidator:
             "null": type(None),
         }
 
-        if expected_type and expected_type in type_map:
-            if not isinstance(value, type_map[expected_type]):
-                errors.append(
-                    Finding(
-                        validator=self.name,
-                        category="type_mismatch",
-                        description=f"{path}: expected {expected_type}, got {type(value).__name__}",
-                        severity=0.9,
-                    )
+        if (
+            expected_type
+            and expected_type in type_map
+            and not isinstance(value, type_map[expected_type])
+        ):
+            errors.append(
+                Finding(
+                    validator=self.name,
+                    category="type_mismatch",
+                    description=f"{path}: expected {expected_type}, got {type(value).__name__}",
+                    severity=0.9,
                 )
-                return errors
+            )
+            return errors
 
         if "enum" in schema and value not in schema["enum"]:
             errors.append(

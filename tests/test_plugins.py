@@ -291,7 +291,7 @@ class TestPluginInfo:
 
 
 class TestPluginsCLI:
-    def _cli(self):  # noqa: ANN202
+    def _cli(self):
         from llm_shelter.cli import _make_cli
 
         return _make_cli()

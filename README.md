@@ -42,6 +42,7 @@ User Input                                                          Output
 | 🎯 | **Decorators** | `@guard_input` and `@guard_output` for any function |
 | 🚦 | **Streaming Guardrails** | Validate token streams incrementally, cut on block, redact across chunks |
 | 🧵 | **Async and Provider Adapters** | `awrap()` for async iterators plus drop-in OpenAI and Anthropic stream wrappers |
+| 🧾 | **Coverage Reports** | Replay a corpus through the pipeline, see what fired, what never did, and OWASP gaps |
 | ⚡ | **CLI** | Scan text from the command line |
 
 ---
@@ -624,6 +625,58 @@ print(audit.summary())          # "1 pass, 0 partial, 3 fail, 6 manual review"
 for check in audit.failed:
     print(check.check_id, check.remediation)
 ```
+
+---
+
+## 🧾 Guardrail Coverage Reports
+
+The OWASP audit tells you what your pipeline is configured to catch. Coverage reports tell you what it actually catches on your traffic: replay a corpus of real prompts or responses through the pipeline and see which validators fired, per-category hit counts, and which validators never fired at all.
+
+```bash
+# Corpus: plain text (one sample per line) or JSONL with a "text" field
+llm-shelter coverage prompts.jsonl --redact
+
+# Use the exact production pipeline from a policy file
+llm-shelter coverage prompts.jsonl --policy guardrails.yaml
+
+# Markdown artifact for CI or a PR comment
+llm-shelter coverage prompts.jsonl --markdown -o coverage.md
+
+# JSON for dashboards
+llm-shelter coverage prompts.jsonl --json-output
+
+# CI gate: exit 1 if any configured validator never fired on the corpus
+llm-shelter coverage prompts.jsonl --fail-on-unused
+```
+
+Sample output:
+
+```
+Guardrail coverage report
+Replayed 250 sample(s): 12 blocked, 31 redacted, 0 warned, 207 clean.
+
+  pii          [redact] 31/250 samples (12.4%), 44 finding(s)
+    pii/email: 29
+    pii/phone_us: 15
+  injection    [block] 12/250 samples (4.8%), 12 finding(s)
+    injection/instruction_override: 12
+  secrets      [warn] 0/250 samples (0.0%), 0 finding(s)
+
+Never fired on this corpus: secrets
+```
+
+The same engine is available in Python:
+
+```python
+from llm_shelter import GuardrailPipeline, load_corpus, run_coverage, render_markdown
+
+pipeline = GuardrailPipeline.from_policy("guardrails.yaml")
+report = run_coverage(pipeline, load_corpus("prompts.jsonl"))
+print(report.unused_validators)     # validators that never fired
+print(render_markdown(report))      # markdown for artifacts
+```
+
+Because samples replay through the real pipeline, blocked samples short-circuit exactly as in production, and the report also lists any automated OWASP LLM Top 10 checks the pipeline fails outright.
 
 ---
 

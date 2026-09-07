@@ -33,7 +33,7 @@ POLICY_SHA = hashlib.sha256(POLICY_BYTES).hexdigest()
 
 
 class _PolicyHandler(BaseHTTPRequestHandler):
-    def do_GET(self) -> None:  # noqa: N802
+    def do_GET(self) -> None:
         if self.path == "/policy.json":
             body = POLICY_BYTES
         elif self.path == "/big.json":

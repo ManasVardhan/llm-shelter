@@ -18,7 +18,7 @@ from __future__ import annotations
 import threading
 import time
 from collections import deque
-from typing import Callable
+from collections.abc import Callable
 
 from llm_shelter.pipeline import Action, Finding, ValidationResult
 

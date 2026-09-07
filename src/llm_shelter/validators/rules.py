@@ -19,8 +19,8 @@ Example::
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Callable
 
 from llm_shelter.pipeline import Action, Finding, ValidationResult
 
@@ -73,7 +73,7 @@ class RuleValidator:
         self.rules = rules or []
         self.action = action
 
-    def add_rule(self, rule: Rule) -> "RuleValidator":
+    def add_rule(self, rule: Rule) -> RuleValidator:
         """Add a rule to the validator. Returns self for chaining."""
         self.rules.append(rule)
         return self
@@ -93,7 +93,7 @@ class RuleValidator:
         for rule in self.rules:
             try:
                 violated = rule.check(text)
-            except Exception:
+            except Exception:  # noqa: BLE001, S112 - user rules may raise anything
                 # If a rule's check raises, treat it as not violated
                 # to avoid blocking on buggy user rules
                 continue

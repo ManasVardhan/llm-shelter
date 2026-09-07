@@ -40,6 +40,7 @@ class TestScanNoTextTTY:
             text=True,
             stdin=subprocess.DEVNULL,
             timeout=10,
+            check=False,
         )
         # DEVNULL stdin is not a TTY and reads as empty. scan should pass.
         assert result.returncode == 0
@@ -54,6 +55,7 @@ class TestScanNoTextTTY:
             capture_output=True,
             text=True,
             timeout=10,
+            check=False,
         )
         assert result.returncode == 0
         assert "llm-shelter" in result.stdout

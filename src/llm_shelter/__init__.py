@@ -18,10 +18,8 @@ Quick start::
 
 from __future__ import annotations
 
-__version__ = "0.5.0"
+__version__ = "0.6.0"
 
-from llm_shelter.pipeline import GuardrailPipeline, ValidationResult
-from llm_shelter.streaming import StreamBlocked, StreamGuard
 from llm_shelter.adapters import (
     anthropic_event_text,
     awrap_anthropic,
@@ -31,7 +29,16 @@ from llm_shelter.adapters import (
     wrap_openai,
 )
 from llm_shelter.auditlog import AuditLogger, AuditRecord, iter_records, summarize
-from llm_shelter.policy import PolicyError, load_pipeline, load_policy_data
+from llm_shelter.coverage import (
+    CoverageError,
+    CoverageReport,
+    ValidatorCoverage,
+    load_corpus,
+    render_markdown,
+    run_coverage,
+)
+from llm_shelter.owasp import CheckStatus, OwaspAudit, OwaspCheck, audit_pipeline
+from llm_shelter.pipeline import GuardrailPipeline, ValidationResult
 from llm_shelter.plugins import (
     PluginError,
     PluginInfo,
@@ -40,55 +47,62 @@ from llm_shelter.plugins import (
     register_validator,
     unregister_validator,
 )
-from llm_shelter.owasp import CheckStatus, OwaspAudit, OwaspCheck, audit_pipeline
-from llm_shelter.validators.pii import PIIValidator
+from llm_shelter.policy import PolicyError, load_pipeline, load_policy_data
+from llm_shelter.streaming import StreamBlocked, StreamGuard
 from llm_shelter.validators.injection import InjectionValidator
-from llm_shelter.validators.toxicity import ToxicityValidator
 from llm_shelter.validators.length import LengthValidator
-from llm_shelter.validators.schema import SchemaValidator
-from llm_shelter.validators.secrets import SecretsValidator
-from llm_shelter.validators.rules import Rule, RuleValidator
+from llm_shelter.validators.pii import PIIValidator
 from llm_shelter.validators.ratelimit import RateLimiter, RateLimitValidator
 from llm_shelter.validators.regex import RegexPattern, RegexValidator
+from llm_shelter.validators.rules import Rule, RuleValidator
+from llm_shelter.validators.schema import SchemaValidator
+from llm_shelter.validators.secrets import SecretsValidator
+from llm_shelter.validators.toxicity import ToxicityValidator
 
 __all__ = [
-    "GuardrailPipeline",
-    "ValidationResult",
-    "StreamBlocked",
-    "StreamGuard",
-    "anthropic_event_text",
-    "awrap_anthropic",
-    "awrap_openai",
-    "openai_chunk_text",
-    "wrap_anthropic",
-    "wrap_openai",
     "AuditLogger",
     "AuditRecord",
-    "iter_records",
-    "summarize",
-    "PolicyError",
-    "load_pipeline",
-    "load_policy_data",
-    "PluginError",
-    "PluginInfo",
-    "create_validator",
-    "discover_plugins",
-    "register_validator",
-    "unregister_validator",
-    "PIIValidator",
-    "InjectionValidator",
-    "ToxicityValidator",
-    "LengthValidator",
-    "SchemaValidator",
-    "SecretsValidator",
-    "Rule",
-    "RuleValidator",
-    "RateLimiter",
-    "RateLimitValidator",
-    "RegexPattern",
-    "RegexValidator",
     "CheckStatus",
+    "CoverageError",
+    "CoverageReport",
+    "GuardrailPipeline",
+    "InjectionValidator",
+    "LengthValidator",
     "OwaspAudit",
     "OwaspCheck",
+    "PIIValidator",
+    "PluginError",
+    "PluginInfo",
+    "PolicyError",
+    "RateLimitValidator",
+    "RateLimiter",
+    "RegexPattern",
+    "RegexValidator",
+    "Rule",
+    "RuleValidator",
+    "SchemaValidator",
+    "SecretsValidator",
+    "StreamBlocked",
+    "StreamGuard",
+    "ToxicityValidator",
+    "ValidationResult",
+    "ValidatorCoverage",
+    "anthropic_event_text",
     "audit_pipeline",
+    "awrap_anthropic",
+    "awrap_openai",
+    "create_validator",
+    "discover_plugins",
+    "iter_records",
+    "load_corpus",
+    "load_pipeline",
+    "load_policy_data",
+    "openai_chunk_text",
+    "register_validator",
+    "render_markdown",
+    "run_coverage",
+    "summarize",
+    "unregister_validator",
+    "wrap_anthropic",
+    "wrap_openai",
 ]

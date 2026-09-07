@@ -24,10 +24,11 @@ from __future__ import annotations
 
 import json
 import threading
+from collections.abc import Iterator
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import IO, TYPE_CHECKING, Any, Iterator
+from typing import IO, TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from llm_shelter.pipeline import ValidationResult
@@ -74,7 +75,7 @@ class AuditRecord:
         return asdict(self)
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "AuditRecord":
+    def from_dict(cls, data: dict[str, Any]) -> AuditRecord:
         """Reconstruct a record from a parsed JSON object."""
         return cls(
             timestamp=data.get("timestamp", ""),
@@ -92,7 +93,7 @@ class AuditRecord:
 
 
 def build_record(
-    result: "ValidationResult",
+    result: ValidationResult,
     validators: list[dict[str, Any]],
     latency_ms: float,
     context: dict[str, Any] | None = None,

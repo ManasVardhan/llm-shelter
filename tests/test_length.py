@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-
 from llm_shelter.validators.length import LengthValidator
 
 

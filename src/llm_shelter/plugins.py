@@ -28,9 +28,10 @@ validators and tests.
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
 from importlib import metadata
-from typing import Any, Callable, cast
+from typing import Any, cast
 
 from llm_shelter.pipeline import Action, Validator
 
@@ -203,7 +204,7 @@ def _load_entry_points(refresh: bool = False) -> dict[str, PluginInfo]:
         except PluginError as exc:
             _entry_point_errors[name] = str(exc)
             continue
-        except Exception as exc:
+        except Exception as exc:  # noqa: BLE001 - third-party entry points may raise anything
             _entry_point_errors[name] = f"failed to load: {exc}"
             continue
         plugins[name] = info

@@ -10,7 +10,8 @@ the application with the modified body.
 from __future__ import annotations
 
 import json
-from typing import Any, Callable
+from collections.abc import Callable
+from typing import Any
 
 from llm_shelter.pipeline import Action, GuardrailPipeline, ValidationResult
 

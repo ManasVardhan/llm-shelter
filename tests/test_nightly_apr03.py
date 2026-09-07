@@ -170,7 +170,8 @@ class TestRuleValidator:
 
     def test_import_from_top_level(self) -> None:
         """Rule and RuleValidator are importable from llm_shelter."""
-        from llm_shelter import Rule as R, RuleValidator as RV
+        from llm_shelter import Rule as R
+        from llm_shelter import RuleValidator as RV
         assert R is Rule
         assert RV is RuleValidator
 
@@ -331,6 +332,7 @@ class TestMainModule:
             capture_output=True,
             text=True,
             timeout=10,
+            check=False,
         )
         assert result.returncode == 0
         assert "llm-shelter" in result.stdout.lower()
@@ -341,6 +343,7 @@ class TestMainModule:
             capture_output=True,
             text=True,
             timeout=10,
+            check=False,
         )
         assert result.returncode == 0
         from llm_shelter import __version__
@@ -352,6 +355,7 @@ class TestMainModule:
             capture_output=True,
             text=True,
             timeout=10,
+            check=False,
         )
         assert result.returncode == 0
         assert "No issues found" in result.stdout
@@ -362,6 +366,7 @@ class TestMainModule:
             capture_output=True,
             text=True,
             timeout=10,
+            check=False,
         )
         assert result.returncode == 0
         data = json.loads(result.stdout)

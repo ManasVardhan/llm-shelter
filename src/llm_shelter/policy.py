@@ -153,7 +153,7 @@ def fetch_policy_bytes(
         raise PolicyError(f"Unsupported policy URL scheme: {parsed.scheme!r} (use https)")
 
     try:
-        with urllib.request.urlopen(url, timeout=timeout) as resp:  # noqa: S310
+        with urllib.request.urlopen(url, timeout=timeout) as resp:
             raw: bytes = resp.read(max_bytes + 1)
     except (urllib.error.URLError, OSError) as exc:
         raise PolicyError(f"Failed to fetch policy from {url}: {exc}") from exc

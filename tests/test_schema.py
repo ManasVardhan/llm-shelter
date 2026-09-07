@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import json
 
-
 from llm_shelter.validators.schema import SchemaValidator
 
 
